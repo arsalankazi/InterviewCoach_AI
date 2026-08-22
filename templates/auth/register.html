@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up - InterviewCoach AI{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-icon">🚀</div>
+            <h1 class="auth-title">Create your account</h1>
+            <p class="auth-subtitle">Join InterviewCoach AI to prepare and excel in your interviews</p>
+        </div>
+
+        <form action="{{ url_for('auth.register') }}" method="POST" class="auth-form" novalidate>
+            <div class="form-group">
+                <label for="name" class="form-label">Full Name</label>
+                <input 
+                    type="text" 
+                    id="name" 
+                    name="name" 
+                    class="form-input" 
+                    placeholder="Jane Doe" 
+                    value="{{ name|default('') }}" 
+                    required 
+                    autocomplete="name"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="email" class="form-label">Email Address</label>
+                <input 
+                    type="email" 
+                    id="email" 
+                    name="email" 
+                    class="form-input" 
+                    placeholder="jane@example.com" 
+                    value="{{ email|default('') }}" 
+                    required 
+                    autocomplete="email"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Password</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    class="form-input" 
+                    placeholder="Minimum 8 characters" 
+                    required 
+                    autocomplete="new-password"
+                >
+                <span class="form-hint">Must be at least 8 characters long</span>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password" class="form-label">Confirm Password</label>
+                <input 
+                    type="password" 
+                    id="confirm_password" 
+                    name="confirm_password" 
+                    class="form-input" 
+                    placeholder="Re-enter your password" 
+                    required 
+                    autocomplete="new-password"
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                Create Student Account
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p>Already have an account? <a href="{{ url_for('auth.login') }}" class="auth-link">Log in</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

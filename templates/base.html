@@ -18,14 +18,44 @@
                 <div class="brand-icon">IC</div>
                 <span>InterviewCoach AI</span>
             </a>
+
             <nav class="nav-links">
-                <div class="status-badge" id="health-badge">
-                    <span class="status-dot"></span>
-                    <span id="status-text">Module 1 Active</span>
-                </div>
+                {% if session.get('role') == 'admin' %}
+                    <span class="user-greeting admin-greeting">
+                        <span class="role-pill pill-admin">Admin</span>
+                        {{ session.get('admin_name') }}
+                    </span>
+                    <a href="{{ url_for('auth.admin_logout') }}" class="nav-btn btn-outline">Logout</a>
+                {% elif session.get('role') == 'student' %}
+                    <span class="user-greeting">
+                        <span class="role-pill pill-student">Student</span>
+                        {{ session.get('user_name') }}
+                    </span>
+                    <a href="{{ url_for('auth.logout') }}" class="nav-btn btn-outline">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="nav-link">Sign In</a>
+                    <a href="{{ url_for('auth.register') }}" class="nav-btn btn-primary-sm">Get Started</a>
+                {% endif %}
             </nav>
         </div>
     </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-wrapper">
+                <div class="flash-container">
+                    {% for category, message in messages %}
+                        <div class="flash-alert flash-{{ category }}" role="alert">
+                            <span class="flash-icon">
+                                {% if category == 'success' %}✓{% elif category == 'error' %}⚠️{% elif category == 'warning' %}!{% else %}ℹ️{% endif %}
+                            </span>
+                            <span class="flash-message">{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% endwith %}
 
     <main class="main-content">
         {% block content %}{% endblock %}

@@ -9,10 +9,7 @@ def get_db():
     """
     if 'db' not in g:
         db_path = current_app.config['DATABASE_PATH']
-        g.db = sqlite3.connect(
-            db_path,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        )
+        g.db = sqlite3.connect(db_path)
         # Enable row access by column name
         g.db.row_factory = sqlite3.Row
         # Enable foreign key constraint support in SQLite

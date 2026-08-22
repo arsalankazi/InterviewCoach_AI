@@ -1,4 +1,7 @@
 """
 Models package for InterviewCoach AI.
-Contains data schemas and model entities (to be expanded in subsequent modules).
 """
+from models.user import User
+from models.admin import Admin
+
+__all__ = ['User', 'Admin']

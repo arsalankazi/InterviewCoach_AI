@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Log In - InterviewCoach AI{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-icon">🔑</div>
+            <h1 class="auth-title">Welcome back</h1>
+            <p class="auth-subtitle">Log in to your InterviewCoach AI student account</p>
+        </div>
+
+        <form action="{{ url_for('auth.login', next=request.args.get('next', '')) }}" method="POST" class="auth-form" novalidate>
+            <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+
+            <div class="form-group">
+                <label for="email" class="form-label">Email Address</label>
+                <input 
+                    type="email" 
+                    id="email" 
+                    name="email" 
+                    class="form-input" 
+                    placeholder="student@example.com" 
+                    value="{{ email|default('') }}" 
+                    required 
+                    autocomplete="email"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Password</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    class="form-input" 
+                    placeholder="Enter your password" 
+                    required 
+                    autocomplete="current-password"
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                Sign In
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p>Don't have an account? <a href="{{ url_for('auth.register') }}" class="auth-link">Sign up</a></p>
+            <p class="admin-portal-link">
+                <a href="{{ url_for('auth.admin_login') }}" class="auth-link-muted">Admin Portal &rarr;</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
