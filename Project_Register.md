@@ -1,0 +1,37 @@
+# InterviewCoach AI - Project Register
+
+## Version
+v0.1
+
+## Status
+Planning Completed
+Environment Ready
+
+## Completed Modules
+- Environment Setup (Python, Flask, venv)
+- Antigravity IDE configured (Editor + Agent settings)
+- Agent Instructions set (Always On rule)
+- Git + GitHub connected
+
+## Current Module
+Module 1 - Project Foundation
+
+## Next Module
+Authentication Module
+
+## Change Log
+
+### Day 1 
+- Installed Antigravity IDE.
+- Configured editor settings (Auto Save, Word Wrap, Format on Save).
+- Configured Agent security mode (Sandboxed).
+- Enabled Browser Agent.
+- Verified Python 3.14.2 installed.
+- Created virtual environment (venv).
+- Installed Flask 3.1.3.
+- Created Agent Instructions (Always On rule).
+- Initialized Git repository.
+- Connected GitHub repository (InterviewCoach_AI).
+- Pushed initial commit.
+
+This document will grow every day.
