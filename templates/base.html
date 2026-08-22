@@ -14,13 +14,14 @@
 <body>
     <header class="site-header">
         <div class="header-container">
-            <a href="{% if session.get('role') == 'student' %}{{ url_for('student.dashboard') }}{% else %}{{ url_for('main.index') }}{% endif %}" class="brand-logo">
+            <a href="{% if session.get('role') == 'admin' %}{{ url_for('admin.dashboard') }}{% elif session.get('role') == 'student' %}{{ url_for('student.dashboard') }}{% else %}{{ url_for('main.index') }}{% endif %}" class="brand-logo">
                 <div class="brand-icon">IC</div>
                 <span>InterviewCoach AI</span>
             </a>
 
             <nav class="nav-links">
                 {% if session.get('role') == 'admin' %}
+                    <a href="{{ url_for('admin.dashboard') }}" class="nav-link">Dashboard</a>
                     <span class="user-greeting admin-greeting">
                         <span class="role-pill pill-admin">Admin</span>
                         {{ session.get('admin_name') }}

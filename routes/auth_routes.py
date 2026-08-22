@@ -137,7 +137,7 @@ def admin_login():
 
         if next_page and next_page.startswith('/'):
             return redirect(next_page)
-        return redirect(url_for('main.index'))
+        return redirect(url_for('admin.dashboard'))
 
     return render_template('auth/admin_login.html')
 

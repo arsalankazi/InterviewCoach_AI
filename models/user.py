@@ -79,6 +79,39 @@ class User:
         return cls.get_by_email(email) is not None
 
     @classmethod
+    def count(cls):
+        """Return the total count of registered students."""
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT COUNT(*) FROM users;")
+        row = cursor.fetchone()
+        return row[0] if row else 0
+
+    @classmethod
+    def get_all(cls, search=None):
+        """
+        Retrieve all registered students ordered by registration date descending.
+        Optionally filter by name or email substring.
+        """
+        db = get_db()
+        cursor = db.cursor()
+        if search and search.strip():
+            query_pattern = f"%{search.strip().lower()}%"
+            cursor.execute(
+                """
+                SELECT * FROM users 
+                WHERE name LIKE ? OR email LIKE ? 
+                ORDER BY created_at DESC;
+                """,
+                (query_pattern, query_pattern)
+            )
+        else:
+            cursor.execute("SELECT * FROM users ORDER BY created_at DESC;")
+
+        rows = cursor.fetchall()
+        return [cls._from_row(row) for row in rows]
+
+    @classmethod
     def _from_row(cls, row):
         """Construct a User instance from a SQLite Row."""
         return cls(

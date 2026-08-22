@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - InterviewCoach AI{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="admin-badge-tag">Admin Console</div>
+        <h1 class="dashboard-title">Administrator Dashboard</h1>
+        <p class="dashboard-subtitle">Real-time system overview, registered student directory, and platform management.</p>
+    </div>
+
+    <!-- Summary Metrics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon-wrapper stat-icon-amber">
+                <span>👥</span>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Total Students</div>
+                <div class="stat-value">{{ metrics.total_students }}</div>
+                <div class="stat-desc">Registered student accounts</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon-wrapper stat-icon-blue">
+                <span>🎯</span>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Interviews Conducted</div>
+                <div class="stat-value">{{ metrics.total_interviews }}</div>
+                <div class="stat-desc">Across all mock sessions</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon-wrapper stat-icon-purple">
+                <span>⚡</span>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Active Today</div>
+                <div class="stat-value">{{ metrics.active_today }}</div>
+                <div class="stat-desc">Daily active candidates</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Management Section -->
+    <div class="section-header">
+        <div class="admin-section-title-row">
+            <div>
+                <h2 class="section-title">Student Directory</h2>
+                <p class="section-subtitle">Manage and inspect registered candidate profiles</p>
+            </div>
+
+            <!-- Search Toolbar -->
+            <form method="GET" action="{{ url_for('admin.dashboard') }}" class="search-toolbar">
+                <div class="search-input-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input 
+                        type="text" 
+                        name="q" 
+                        class="search-input" 
+                        placeholder="Search by name or email..." 
+                        value="{{ search_query }}"
+                    >
+                    {% if search_query %}
+                        <a href="{{ url_for('admin.dashboard') }}" class="search-clear-btn" title="Clear filter">&times;</a>
+                    {% endif %}
+                </div>
+                <button type="submit" class="btn btn-admin-sm">Search</button>
+            </form>
+        </div>
+
+        {% if search_query %}
+            <div class="search-status-bar">
+                <span>Showing <strong>{{ filtered_count }}</strong> matching result{% if filtered_count != 1 %}s{% endif %} for "<em>{{ search_query }}</em>"</span>
+                <a href="{{ url_for('admin.dashboard') }}" class="auth-link">Reset filter</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Students Table -->
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 80px;">ID</th>
+                        <th>Student Name</th>
+                        <th>Email Address</th>
+                        <th>Registered Date</th>
+                        <th style="width: 120px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if students and students|length > 0 %}
+                        {% for student in students %}
+                            <tr>
+                                <td class="td-id">#{{ student.id }}</td>
+                                <td class="td-name">
+                                    <div class="student-name-cell">
+                                        <div class="student-mini-avatar">
+                                            {{ student.name[:2]|upper }}
+                                        </div>
+                                        <span class="student-name-text">{{ student.name }}</span>
+                                    </div>
+                                </td>
+                                <td class="td-email">{{ student.email }}</td>
+                                <td class="td-date">{{ student.created_at }}</td>
+                                <td>
+                                    <span class="status-pill status-pill-success">Active</span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="table-empty">
+                                <div class="empty-state">
+                                    <div class="empty-icon">📭</div>
+                                    <h3>No students found</h3>
+                                    <p>
+                                        {% if search_query %}
+                                            No registered student matches your query "{{ search_query }}".
+                                        {% else %}
+                                            No students have registered in the platform yet.
+                                        {% endif %}
+                                    </p>
+                                    {% if search_query %}
+                                        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline" style="margin-top: 1rem;">Clear Search</a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
