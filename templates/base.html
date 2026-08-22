@@ -14,7 +14,7 @@
 <body>
     <header class="site-header">
         <div class="header-container">
-            <a href="{{ url_for('main.index') }}" class="brand-logo">
+            <a href="{% if session.get('role') == 'student' %}{{ url_for('student.dashboard') }}{% else %}{{ url_for('main.index') }}{% endif %}" class="brand-logo">
                 <div class="brand-icon">IC</div>
                 <span>InterviewCoach AI</span>
             </a>
@@ -27,6 +27,8 @@
                     </span>
                     <a href="{{ url_for('auth.admin_logout') }}" class="nav-btn btn-outline">Logout</a>
                 {% elif session.get('role') == 'student' %}
+                    <a href="{{ url_for('student.dashboard') }}" class="nav-link">Dashboard</a>
+                    <a href="{{ url_for('student.profile') }}" class="nav-link">Profile</a>
                     <span class="user-greeting">
                         <span class="role-pill pill-student">Student</span>
                         {{ session.get('user_name') }}

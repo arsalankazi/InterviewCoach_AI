@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Student Dashboard - InterviewCoach AI{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Welcome Header -->
+    <div class="dashboard-header">
+        <div class="welcome-badge">Student Portal</div>
+        <h1 class="dashboard-title">Welcome back, {{ user.name }}!</h1>
+        <p class="dashboard-subtitle">Track your interview preparation progress, practice mock interviews, and optimize your performance.</p>
+    </div>
+
+    <!-- Summary Metrics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon-wrapper stat-icon-blue">
+                <span>🎯</span>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Total Interviews</div>
+                <div class="stat-value">{{ metrics.total_interviews }}</div>
+                <div class="stat-desc">Completed practice sessions</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon-wrapper stat-icon-purple">
+                <span>🏆</span>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Average Score</div>
+                <div class="stat-value">{{ metrics.avg_score }}</div>
+                <div class="stat-desc">Across all question sets</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon-wrapper stat-icon-amber">
+                <span>📄</span>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Resume Status</div>
+                <div class="stat-value stat-value-sm">
+                    <span class="status-pill status-pill-warning">{{ metrics.resume_status }}</span>
+                </div>
+                <div class="stat-desc">Upload to customize questions</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="section-header">
+        <h2 class="section-title">Quick Actions</h2>
+        <p class="section-subtitle">Choose an action to continue your interview training</p>
+    </div>
+
+    <div class="action-grid">
+        <!-- Start New Interview -->
+        <a href="{{ url_for('student.start_interview') }}" class="action-card action-card-featured">
+            <div class="action-badge">AI Powered</div>
+            <div class="action-icon">🚀</div>
+            <h3 class="action-title">Start New Interview</h3>
+            <p class="action-desc">Launch an interactive AI mock interview tailored to your target industry and job role.</p>
+            <div class="action-link-text">Begin Session &rarr;</div>
+        </a>
+
+        <!-- Upload Resume -->
+        <a href="{{ url_for('student.upload_resume') }}" class="action-card">
+            <div class="action-icon">📤</div>
+            <h3 class="action-title">Upload Resume</h3>
+            <p class="action-desc">Upload your latest resume (PDF/DOCX) so our AI can extract skills and personalize questions.</p>
+            <div class="action-link-text">Upload File &rarr;</div>
+        </a>
+
+        <!-- Interview History -->
+        <a href="{{ url_for('student.interview_history') }}" class="action-card">
+            <div class="action-icon">📊</div>
+            <h3 class="action-title">Interview History</h3>
+            <p class="action-desc">Review your past answers, performance analytics, and actionable AI feedback suggestions.</p>
+            <div class="action-link-text">View History &rarr;</div>
+        </a>
+
+        <!-- My Profile -->
+        <a href="{{ url_for('student.profile') }}" class="action-card">
+            <div class="action-icon">👤</div>
+            <h3 class="action-title">My Profile</h3>
+            <p class="action-desc">View and manage your student account credentials and profile settings.</p>
+            <div class="action-link-text">Manage Profile &rarr;</div>
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Student Profile - InterviewCoach AI{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <a href="{{ url_for('student.dashboard') }}" class="back-link">&larr; Back to Dashboard</a>
+        <h1 class="profile-title">Student Profile</h1>
+        <p class="profile-subtitle">View and manage your account details</p>
+    </div>
+
+    <div class="profile-card">
+        <div class="profile-avatar-section">
+            <div class="profile-avatar">
+                {{ user.name[:2]|upper }}
+            </div>
+            <div class="profile-avatar-info">
+                <h2 class="profile-name">{{ user.name }}</h2>
+                <div class="profile-badge-row">
+                    <span class="role-pill pill-student">Student Account</span>
+                    <span class="status-pill status-pill-success">Active</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-details-grid">
+            <div class="detail-item">
+                <div class="detail-label">Full Name</div>
+                <div class="detail-value">{{ user.name }}</div>
+            </div>
+
+            <div class="detail-item">
+                <div class="detail-label">Email Address</div>
+                <div class="detail-value">{{ user.email }}</div>
+            </div>
+
+            <div class="detail-item">
+                <div class="detail-label">Account ID</div>
+                <div class="detail-value">#{{ user.id }}</div>
+            </div>
+
+            <div class="detail-item">
+                <div class="detail-label">Member Since</div>
+                <div class="detail-value">
+                    {% if user.created_at %}
+                        {{ user.created_at }}
+                    {% else %}
+                        Recent
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-actions">
+            <a href="{{ url_for('student.dashboard') }}" class="btn btn-primary">
+                Return to Dashboard
+            </a>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-outline">
+                Sign Out
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

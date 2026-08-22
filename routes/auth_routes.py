@@ -41,7 +41,7 @@ def register():
             session['role'] = 'student'
 
             flash(f"Account created successfully! Welcome to InterviewCoach AI, {user.name}.", 'success')
-            return redirect(url_for('main.index'))
+            return redirect(url_for('student.dashboard'))
         except Exception as e:
             flash(f"Registration failed: {str(e)}", 'error')
             return render_template('auth/register.html', name=name, email=email), 500
@@ -85,7 +85,7 @@ def login():
         # Prevent open redirect vulnerabilities
         if next_page and next_page.startswith('/'):
             return redirect(next_page)
-        return redirect(url_for('main.index'))
+        return redirect(url_for('student.dashboard'))
 
     return render_template('auth/login.html')
 
