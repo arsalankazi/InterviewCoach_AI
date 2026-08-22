@@ -12,9 +12,10 @@ Environment Ready
 - Antigravity IDE configured (Editor + Agent settings)
 - Agent Instructions set (Always On rule)
 - Git + GitHub connected
+- Module 1 - Project Foundation -  (Flask app factory, config, folder structure, SQLite connection)
 
 ## Current Module
-Module 1 - Project Foundation
+Module 2 - Authentication
 
 ## Next Module
 Authentication Module
