@@ -20,12 +20,13 @@ Environment Ready
 - Module 6 - Resume Upload & Parsing
 - Module 7 - Skills Management
 - Module 8 - Interview Setup (Persona selection, 2026 tech roles, session configuration)
+- Module 9 - AI Conversation Engine (Gemini 2.0 Flash SDK, prompt builder, 4-stage interview flow, message persistence, backend chat API)
 
 ## Current Module
-Module 8 - Interview Setup (Completed)
+Module 9 - AI Conversation Engine (Completed)
 
 ## Next Module
-Module 9 - AI Conversation Engine
+Module 10 - AI Feedback & Evaluation Engine (or Module 11 - Interview Room UI)
 
 ## Change Log
 

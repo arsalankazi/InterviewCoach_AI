@@ -9,12 +9,15 @@ from flask import (
     url_for,
     flash,
     current_app,
-    send_from_directory
+    send_from_directory,
+    jsonify
 )
 from werkzeug.utils import secure_filename
 from models.user import User
 from services.resume_parser import extract_skills_from_pdf, SKILL_LIBRARY
 from models.interview_session import InterviewSession
+from models.interview_message import InterviewMessage
+from services.conversation_engine import get_next_question
 from utils.decorators import login_required
 
 student_bp = Blueprint('student', __name__, url_prefix='/student')
@@ -402,6 +405,86 @@ def interview_setup():
         job_roles=JOB_ROLES,
         form_data={}
     )
+
+
+# ---------------------------------------------------------
+# AI Conversation Engine API Endpoints (Module 9)
+# ---------------------------------------------------------
+
+@student_bp.route('/interviews/<int:session_id>/chat', methods=['POST'])
+@login_required
+def interview_chat(session_id: int):
+    """
+    Backend Chat API endpoint for processing candidate answers and generating
+    the next AI interviewer question turn (Module 9).
+    Accepts JSON body: {"answer": "candidate answer text"}
+    Returns JSON: {
+        "success": bool,
+        "ai_message": str,
+        "sender": "ai",
+        "session_id": int,
+        "status": "in_progress",
+        "message_count": int,
+        "error": str | None
+    }
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+    if not user:
+        return jsonify({"success": False, "error": "Unauthorized session."}), 401
+
+    interview_session = InterviewSession.get_by_id(session_id)
+    if not interview_session:
+        return jsonify({"success": False, "error": f"Interview session {session_id} not found."}), 404
+
+    # Security check: ensure student owns this session
+    if interview_session.user_id != user.id:
+        return jsonify({
+            "success": False,
+            "error": "Forbidden: You do not have permission to access this session."
+        }), 403
+
+    # Extract answer text from JSON or form payload
+    data = request.get_json(silent=True) or {}
+    student_answer = data.get('answer') if data.get('answer') is not None else request.form.get('answer')
+
+    # Dispatch to conversation engine
+    result = get_next_question(session_id=session_id, student_answer=student_answer)
+
+    status_code = 200 if result.get("success") or result.get("fallback_used") else 500
+    return jsonify(result), status_code
+
+
+@student_bp.route('/interviews/<int:session_id>/messages', methods=['GET'])
+@login_required
+def get_interview_messages(session_id: int):
+    """
+    Retrieve full multi-turn conversation history for an interview session.
+    Returns JSON: {"success": True, "session_id": int, "messages": [...]}
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+    if not user:
+        return jsonify({"success": False, "error": "Unauthorized session."}), 401
+
+    interview_session = InterviewSession.get_by_id(session_id)
+    if not interview_session:
+        return jsonify({"success": False, "error": f"Interview session {session_id} not found."}), 404
+
+    if interview_session.user_id != user.id:
+        return jsonify({
+            "success": False,
+            "error": "Forbidden: You do not have permission to access this session."
+        }), 403
+
+    messages = InterviewMessage.get_by_session(session_id)
+    return jsonify({
+        "success": True,
+        "session_id": session_id,
+        "status": interview_session.status,
+        "count": len(messages),
+        "messages": [m.to_dict() for m in messages]
+    }), 200
 
 
 # ---------------------------------------------------------

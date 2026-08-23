@@ -32,7 +32,17 @@ CREATE TABLE IF NOT EXISTS interview_sessions (
     created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Interview Messages table
+CREATE TABLE IF NOT EXISTS interview_messages (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id   INTEGER NOT NULL REFERENCES interview_sessions(id) ON DELETE CASCADE,
+    sender       TEXT    NOT NULL CHECK(sender IN ('ai', 'student')),
+    message_text TEXT    NOT NULL,
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_admins_email ON admins(email);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON interview_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_messages_session ON interview_messages(session_id);

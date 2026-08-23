@@ -62,6 +62,32 @@ class InterviewSession:
         session_id = cursor.lastrowid
         return cls.get_by_id(session_id)
 
+    def update_status(self, new_status: str):
+        """Update the lifecycle status of this session instance ('setup', 'in_progress', 'completed')."""
+        if new_status not in ('setup', 'in_progress', 'completed'):
+            raise ValueError(f"Invalid status '{new_status}'.")
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            "UPDATE interview_sessions SET status = ? WHERE id = ?;",
+            (new_status, self.id)
+        )
+        db.commit()
+        self.status = new_status
+
+    @classmethod
+    def update_status_by_id(cls, session_id: int, new_status: str):
+        """Update the lifecycle status for a session by its primary key."""
+        if new_status not in ('setup', 'in_progress', 'completed'):
+            raise ValueError(f"Invalid status '{new_status}'.")
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            "UPDATE interview_sessions SET status = ? WHERE id = ?;",
+            (new_status, session_id)
+        )
+        db.commit()
+
     # ------------------------------------------------------------------
     # Read operations
     # ------------------------------------------------------------------
