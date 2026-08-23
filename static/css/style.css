@@ -229,9 +229,14 @@ body {
   box-shadow: 0 4px 14px var(--accent-glow);
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-primary-sm {
@@ -282,8 +287,8 @@ body {
   background: transparent;
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  padding: 0.45rem 0.9rem;
-  font-size: 0.85rem;
+  padding: 0.55rem 1.15rem;
+  font-size: 0.9rem;
   text-decoration: none;
   border-radius: var(--radius-sm);
   transition: all 0.2s ease;
@@ -539,6 +544,11 @@ body {
 .stat-icon-amber {
   background: rgba(245, 158, 11, 0.15);
   border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.stat-icon-green {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .stat-content {
@@ -897,6 +907,191 @@ body {
 }
 
 /* ---------------------------------------------------------
+   Resume Upload & Management Styles (Module 6)
+--------------------------------------------------------- */
+.resume-upload-container {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.current-resume-card {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(17, 24, 39, 0.9) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.75rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+.current-resume-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.current-resume-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.current-resume-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.current-resume-date {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.current-resume-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.upload-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 2.25rem;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.upload-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.upload-card-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.upload-card-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.dropzone-area {
+  border: 2px dashed rgba(99, 102, 241, 0.35);
+  border-radius: var(--radius-md);
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  background: rgba(99, 102, 241, 0.03);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dropzone-area:hover,
+.dropzone-active {
+  border-color: var(--accent-primary);
+  background: rgba(99, 102, 241, 0.08);
+  box-shadow: var(--shadow-glow);
+}
+
+.dropzone-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.dropzone-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dropzone-sub {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.selected-file-pill {
+  margin-top: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  color: #a5b4fc;
+}
+
+.file-pill-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.file-pill-size {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.upload-guidelines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.25rem;
+}
+
+.guideline-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.guideline-icon {
+  color: var(--success);
+  font-weight: 800;
+}
+
+.upload-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* ---------------------------------------------------------
    Student Profile Styles
 --------------------------------------------------------- */
 .profile-container {
@@ -1006,6 +1201,22 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 1rem 1.25rem;
+}
+
+.detail-item-full {
+  grid-column: 1 / -1;
+}
+
+.resume-status-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.resume-meta-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
 .detail-label {
@@ -1146,3 +1357,311 @@ body {
   font-size: 0.85rem;
   background: var(--bg-primary);
 }
+
+/* ================================================================
+   MODULE 7 — Skills Badges & Skills Management
+   ================================================================ */
+
+/* ── Skill Badge (read-only) ──────────────────────────────────── */
+.skill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 99px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(79, 70, 229, 0.22));
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+
+/* ── Skill Badge (removable button) ──────────────────────────── */
+button.skill-badge,
+.skill-badge-removable {
+  cursor: pointer;
+  background: none;
+  font-family: var(--font-sans);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(79, 70, 229, 0.22));
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+button.skill-badge:hover,
+.skill-badge-removable:hover {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2));
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  transform: scale(1.03);
+}
+
+.skill-remove-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+  opacity: 0.75;
+  margin-left: 0.1rem;
+}
+
+/* ── More badge (link style) ─────────────────────────────────── */
+a.skill-badge-more {
+  text-decoration: none;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+a.skill-badge-more:hover {
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--text-primary);
+}
+
+/* ── Tags flex container ─────────────────────────────────────── */
+.skills-tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Remove form sits inline with badge */
+.skill-remove-form {
+  display: contents;
+}
+
+/* ── Dashboard Skills Card ───────────────────────────────────── */
+.skills-dashboard-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 2rem;
+  backdrop-filter: blur(10px);
+}
+
+.skills-dashboard-header {
+  margin-bottom: 1rem;
+}
+
+.skills-dashboard-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.skills-dashboard-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.skills-manage-link {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+
+.skills-manage-link:hover {
+  color: #818cf8;
+}
+
+.skills-tags-dashboard {
+  /* Slightly tighter on the dashboard */
+  gap: 0.4rem;
+}
+
+.skills-dashboard-empty {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+/* ── Skills Management Page ──────────────────────────────────── */
+.skills-page-container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.skills-section-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-card);
+}
+
+.skills-add-card {
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.skills-section-header {
+  margin-bottom: 1.5rem;
+}
+
+.skills-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.skills-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.skills-section-icon {
+  font-size: 1.1rem;
+}
+
+.skills-count-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  border-radius: 99px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.skills-section-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* ── Empty State ─────────────────────────────────────────────── */
+.skills-empty-state {
+  text-align: center;
+  padding: 2.5rem 1rem;
+}
+
+.skills-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.skills-empty-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.skills-empty-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ── Add Skill Form ──────────────────────────────────────────── */
+.skills-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.skill-input-toggle-row {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.skill-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.skill-toggle-label:has(input:checked) {
+  color: var(--text-primary);
+}
+
+.skill-toggle-label input[type="radio"] {
+  accent-color: var(--accent-primary);
+}
+
+.skill-input-panel {
+  transition: opacity 0.2s;
+}
+
+.skills-select,
+.skills-text-input {
+  width: 100%;
+  max-width: 420px;
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.skills-select:focus,
+.skills-text-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.skills-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.skills-all-added-msg {
+  font-size: 0.9rem;
+  color: var(--success);
+  padding: 0.5rem 0;
+}
+
+.skills-add-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ── Help Note ───────────────────────────────────────────────── */
+.skills-help-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.skills-help-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+/* ── Profile muted text ─────────────────────────────────────── */
+.profile-muted {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Resume - InterviewCoach AI{% endblock %}
+
+{% block content %}
+<div class="resume-upload-container">
+    <div class="profile-header">
+        <a href="{{ url_for('student.dashboard') }}" class="back-link">&larr; Back to Dashboard</a>
+        <h1 class="profile-title">Resume Management</h1>
+        <p class="profile-subtitle">Upload your resume in PDF format to enable AI skills extraction and personalized interview questions.</p>
+    </div>
+
+    <!-- Current Resume Status Card -->
+    {% if user.has_resume() %}
+        <div class="current-resume-card">
+            <div class="current-resume-icon">📄</div>
+            <div class="current-resume-details">
+                <div class="current-resume-tag">
+                    <span class="status-pill status-pill-success">Active Resume</span>
+                </div>
+                <h3 class="current-resume-name">{{ user.resume_filename }}</h3>
+                <p class="current-resume-date">Uploaded on {{ user.resume_uploaded_at }}</p>
+            </div>
+            <div class="current-resume-actions">
+                <a href="{{ url_for('student.view_resume') }}" target="_blank" class="btn btn-outline">
+                    View PDF ↗
+                </a>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Upload Form Card -->
+    <div class="upload-card">
+        <div class="upload-card-header">
+            <h2 class="upload-card-title">
+                {% if user.has_resume() %}Replace Your Resume{% else %}Upload New Resume{% endif %}
+            </h2>
+            <p class="upload-card-desc">Only PDF files are supported. Maximum file size: 15 MB.</p>
+        </div>
+
+        <form action="{{ url_for('student.upload_resume') }}" method="POST" enctype="multipart/form-data" class="upload-form" id="resume-form">
+            <div class="dropzone-area" id="dropzone">
+                <div class="dropzone-icon">📥</div>
+                <h3 class="dropzone-title">Drag & drop your PDF resume here</h3>
+                <p class="dropzone-sub">or click to browse from your computer</p>
+                <input 
+                    type="file" 
+                    id="resume" 
+                    name="resume" 
+                    class="file-input-hidden" 
+                    accept=".pdf,application/pdf" 
+                    required
+                >
+                <div class="selected-file-pill" id="file-pill" style="display: none;">
+                    <span class="file-pill-icon">📎</span>
+                    <span class="file-pill-name" id="file-name">No file chosen</span>
+                    <span class="file-pill-size" id="file-size"></span>
+                </div>
+            </div>
+
+            <div class="upload-guidelines">
+                <div class="guideline-item">
+                    <span class="guideline-icon">✓</span>
+                    <span>Accepted format: <strong>.pdf</strong></span>
+                </div>
+                <div class="guideline-item">
+                    <span class="guideline-icon">✓</span>
+                    <span>Maximum file size: <strong>15 MB</strong></span>
+                </div>
+                <div class="guideline-item">
+                    <span class="guideline-icon">✓</span>
+                    <span>Replaces any previously uploaded resume securely</span>
+                </div>
+            </div>
+
+            <div class="upload-actions">
+                <button type="submit" class="btn btn-primary" id="submit-btn" disabled>
+                    {% if user.has_resume() %}Replace & Upload Resume{% else %}Upload Resume{% endif %}
+                </button>
+                <a href="{{ url_for('student.dashboard') }}" class="btn btn-outline">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('resume');
+    const filePill = document.getElementById('file-pill');
+    const fileNameSpan = document.getElementById('file-name');
+    const fileSizeSpan = document.getElementById('file-size');
+    const submitBtn = document.getElementById('submit-btn');
+
+    if (!dropzone || !fileInput) return;
+
+    // Click dropzone to open file picker
+    dropzone.addEventListener('click', (e) => {
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
+
+    // Handle file selection
+    fileInput.addEventListener('change', () => {
+        handleFiles(fileInput.files);
+    });
+
+    // Drag and drop events
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('dropzone-active');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dropzone-active');
+        }, false);
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files && files.length > 0) {
+            fileInput.files = files;
+            handleFiles(files);
+        }
+    });
+
+    function handleFiles(files) {
+        if (!files || files.length === 0) {
+            filePill.style.display = 'none';
+            submitBtn.disabled = true;
+            return;
+        }
+
+        const file = files[0];
+        
+        // Validate extension
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            alert('Please select a valid PDF (.pdf) file.');
+            fileInput.value = '';
+            filePill.style.display = 'none';
+            submitBtn.disabled = true;
+            return;
+        }
+
+        // Validate size (15MB)
+        if (file.size > 15 * 1024 * 1024) {
+            alert('File size exceeds the 15MB limit. Please choose a smaller PDF file.');
+            fileInput.value = '';
+            filePill.style.display = 'none';
+            submitBtn.disabled = true;
+            return;
+        }
+
+        // Format file size
+        const sizeFormatted = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+        fileNameSpan.textContent = file.name;
+        fileSizeSpan.textContent = `(${sizeFormatted})`;
+        filePill.style.display = 'inline-flex';
+        submitBtn.disabled = false;
+    }
+});
+</script>
+{% endblock %}

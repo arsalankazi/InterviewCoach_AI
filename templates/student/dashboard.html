@@ -36,17 +36,59 @@
         </div>
 
         <div class="stat-card">
-            <div class="stat-icon-wrapper stat-icon-amber">
+            <div class="stat-icon-wrapper {% if metrics.has_resume %}stat-icon-green{% else %}stat-icon-amber{% endif %}">
                 <span>📄</span>
             </div>
             <div class="stat-content">
                 <div class="stat-label">Resume Status</div>
                 <div class="stat-value stat-value-sm">
-                    <span class="status-pill status-pill-warning">{{ metrics.resume_status }}</span>
+                    {% if metrics.has_resume %}
+                        <span class="status-pill status-pill-success">Uploaded</span>
+                    {% else %}
+                        <span class="status-pill status-pill-warning">Not Uploaded</span>
+                    {% endif %}
                 </div>
-                <div class="stat-desc">Upload to customize questions</div>
+                <div class="stat-desc">
+                    {% if metrics.has_resume %}
+                        Active ({{ metrics.resume_uploaded_at }})
+                    {% else %}
+                        Upload to customize questions
+                    {% endif %}
+                </div>
             </div>
         </div>
+    </div>
+
+    <!-- Skills Summary -->
+    <div class="skills-dashboard-card">
+        <div class="skills-dashboard-header">
+            <div class="skills-dashboard-title-row">
+                <h3 class="skills-dashboard-title">🏷️ My Skills</h3>
+                <a href="{{ url_for('student.skills_manager') }}" class="skills-manage-link">Manage &rarr;</a>
+            </div>
+        </div>
+        {% set skill_list = user.get_skills() %}
+        {% if skill_list %}
+            <div class="skills-tags-wrap skills-tags-dashboard">
+                {% for skill in skill_list[:12] %}
+                    <span class="skill-badge">{{ skill }}</span>
+                {% endfor %}
+                {% if skill_list|length > 12 %}
+                    <a href="{{ url_for('student.skills_manager') }}" class="skill-badge skill-badge-more">
+                        +{{ skill_list|length - 12 }} more
+                    </a>
+                {% endif %}
+            </div>
+        {% else %}
+            <p class="skills-dashboard-empty">
+                No skills detected yet.
+                {% if user.has_resume() %}
+                    <a href="{{ url_for('student.skills_manager') }}" class="auth-link">Add manually &rarr;</a>
+                {% else %}
+                    <a href="{{ url_for('student.upload_resume') }}" class="auth-link">Upload your resume to auto-detect &rarr;</a>
+                {% endif %}
+            </p>
+        {% endif %}
     </div>
 
     <!-- Quick Actions -->
@@ -68,9 +110,19 @@
         <!-- Upload Resume -->
         <a href="{{ url_for('student.upload_resume') }}" class="action-card">
             <div class="action-icon">📤</div>
-            <h3 class="action-title">Upload Resume</h3>
-            <p class="action-desc">Upload your latest resume (PDF/DOCX) so our AI can extract skills and personalize questions.</p>
-            <div class="action-link-text">Upload File &rarr;</div>
+            <h3 class="action-title">
+                {% if metrics.has_resume %}Manage Resume{% else %}Upload Resume{% endif %}
+            </h3>
+            <p class="action-desc">
+                {% if metrics.has_resume %}
+                    Your resume is active. View details or replace it with a newer PDF version.
+                {% else %}
+                    Upload your latest resume (PDF) so our AI can extract skills and personalize questions.
+                {% endif %}
+            </p>
+            <div class="action-link-text">
+                {% if metrics.has_resume %}Manage File &rarr;{% else %}Upload File &rarr;{% endif %}
+            </div>
         </a>
 
         <!-- Interview History -->
@@ -79,6 +131,14 @@
             <h3 class="action-title">Interview History</h3>
             <p class="action-desc">Review your past answers, performance analytics, and actionable AI feedback suggestions.</p>
             <div class="action-link-text">View History &rarr;</div>
+        </a>
+
+        <!-- My Skills -->
+        <a href="{{ url_for('student.skills_manager') }}" class="action-card">
+            <div class="action-icon">🏷️</div>
+            <h3 class="action-title">My Skills</h3>
+            <p class="action-desc">View, add, or remove the skills detected from your resume that personalise your interview questions.</p>
+            <div class="action-link-text">Manage Skills &rarr;</div>
         </a>
 
         <!-- My Profile -->

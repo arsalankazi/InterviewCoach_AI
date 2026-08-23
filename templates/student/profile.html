@@ -50,6 +50,38 @@
                     {% endif %}
                 </div>
             </div>
+
+            <div class="detail-item detail-item-full">
+                <div class="detail-label">Resume Status</div>
+                <div class="detail-value resume-status-detail">
+                    {% if user.has_resume() %}
+                        <span class="status-pill status-pill-success">Uploaded</span>
+                        <span class="resume-meta-text">{{ user.resume_filename }} ({{ user.resume_uploaded_at }})</span>
+                        <a href="{{ url_for('student.upload_resume') }}" class="auth-link" style="margin-left: auto;">Manage &rarr;</a>
+                    {% else %}
+                        <span class="status-pill status-pill-warning">Not Uploaded</span>
+                        <a href="{{ url_for('student.upload_resume') }}" class="auth-link" style="margin-left: auto;">Upload Resume &rarr;</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="detail-item detail-item-full">
+                <div class="detail-label">Extracted Skills</div>
+                <div class="detail-value">
+                    {% set skill_list = user.get_skills() %}
+                    {% if skill_list %}
+                        <div class="skills-tags-wrap" style="margin-bottom: 0.5rem;">
+                            {% for skill in skill_list %}
+                                <span class="skill-badge">{{ skill }}</span>
+                            {% endfor %}
+                        </div>
+                        <a href="{{ url_for('student.skills_manager') }}" class="auth-link">Manage Skills &rarr;</a>
+                    {% else %}
+                        <span class="profile-muted">No skills on file.</span>
+                        <a href="{{ url_for('student.skills_manager') }}" class="auth-link" style="margin-left: 0.5rem;">Add Skills &rarr;</a>
+                    {% endif %}
+                </div>
+            </div>
         </div>
 
         <div class="profile-actions">

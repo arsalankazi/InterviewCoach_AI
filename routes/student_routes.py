@@ -1,28 +1,53 @@
-from flask import Blueprint, render_template, session, redirect, url_for, flash
+import os
+from pathlib import Path
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    session,
+    redirect,
+    url_for,
+    flash,
+    current_app,
+    send_from_directory
+)
+from werkzeug.utils import secure_filename
 from models.user import User
+from services.resume_parser import extract_skills_from_pdf, SKILL_LIBRARY
 from utils.decorators import login_required
 
 student_bp = Blueprint('student', __name__, url_prefix='/student')
+
+MAX_RESUME_SIZE = 15 * 1024 * 1024  # 15 MB
+ALLOWED_EXTENSIONS = {'pdf'}
+
+
+def allowed_file(filename):
+    """Verify if the uploaded file has an allowed PDF extension."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 @student_bp.route('/dashboard', methods=['GET'])
 @login_required
 def dashboard():
     """
-    Student Dashboard view showing summary statistics, status indicators, and quick action cards.
+    Student Dashboard view showing summary statistics, live resume status, and action cards.
     """
     user_id = session.get('student_id') or session.get('user_id')
     user = User.get_by_id(user_id)
-    
+
     if not user:
         flash("User profile not found. Please log in again.", "error")
         return redirect(url_for('auth.logout'))
 
-    # Summary metrics (baseline placeholders for Module 3)
+    # Dynamic metrics based on student data
     metrics = {
         "total_interviews": 0,
         "avg_score": "N/A",
-        "resume_status": "Not Uploaded"
+        "has_resume": user.has_resume(),
+        "resume_filename": user.resume_filename,
+        "resume_uploaded_at": user.resume_uploaded_at,
+        "resume_status": "Uploaded" if user.has_resume() else "Not Uploaded"
     }
 
     return render_template('student/dashboard.html', user=user, metrics=metrics)
@@ -45,6 +70,222 @@ def profile():
 
 
 # ---------------------------------------------------------
+# Resume Upload & Management Routes (Module 6)
+# ---------------------------------------------------------
+
+@student_bp.route('/resume/upload', methods=['GET', 'POST'])
+@login_required
+def upload_resume():
+    """
+    Resume upload endpoint.
+    GET: Displays the upload interface and current resume status.
+    POST: Validates PDF format, enforces 15MB limit, replaces prior uploads, and stores the file.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+
+    if not user:
+        flash("User session invalid. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    if request.method == 'POST':
+        # Verify file presence in the request
+        if 'resume' not in request.files:
+            flash("No file part in the request.", "error")
+            return render_template('student/resume_upload.html', user=user), 400
+
+        file = request.files['resume']
+
+        # Verify a file was actually selected
+        if file.filename == '':
+            flash("Please select a PDF resume file to upload.", "error")
+            return render_template('student/resume_upload.html', user=user), 400
+
+        # Validate file extension
+        if not allowed_file(file.filename):
+            flash("Invalid file type. Only PDF files (.pdf) are accepted.", "error")
+            return render_template('student/resume_upload.html', user=user), 400
+
+        # Validate file size
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+
+        if file_size == 0:
+            flash("The selected PDF file is empty.", "error")
+            return render_template('student/resume_upload.html', user=user), 400
+
+        if file_size > MAX_RESUME_SIZE:
+            flash("File size exceeds the 15MB limit. Please upload a smaller PDF document.", "error")
+            return render_template('student/resume_upload.html', user=user), 400
+
+        upload_folder = current_app.config.get(
+            'UPLOAD_FOLDER',
+            str(Path(current_app.root_path) / 'static' / 'uploads' / 'resumes')
+        )
+        upload_dir = Path(upload_folder)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
+        # Remove previous resume file if it exists to avoid orphaned files
+        if user.has_resume():
+            user.delete_resume(upload_folder=upload_dir)
+
+        # Unique, collision-free filename pattern
+        stored_filename = f"user_{user.id}_resume.pdf"
+        file_dest = upload_dir / stored_filename
+
+        try:
+            file.save(str(file_dest))
+            user.update_resume(stored_filename)
+
+            # ── Auto-extract skills from the uploaded PDF ─────────────────
+            parse_result = extract_skills_from_pdf(str(file_dest))
+            if parse_result['extraction_failed']:
+                flash(
+                    "Resume uploaded, but text could not be extracted "
+                    "(possibly a scanned/image-only PDF). "
+                    "You can add your skills manually.",
+                    "warning"
+                )
+            elif not parse_result['skills']:
+                user.save_skills([])
+                flash(
+                    "Resume uploaded successfully! No recognisable skills were "
+                    "detected automatically — you can add them manually.",
+                    "warning"
+                )
+            else:
+                user.save_skills(parse_result['skills'])
+                flash(
+                    f"Resume uploaded! "
+                    f"{len(parse_result['skills'])} skill(s) detected automatically.",
+                    "success"
+                )
+
+            return redirect(url_for('student.dashboard'))
+        except Exception as e:
+            flash(f"Failed to save resume file: {str(e)}", "error")
+            return render_template('student/resume_upload.html', user=user), 500
+
+    return render_template('student/resume_upload.html', user=user)
+
+
+# ---------------------------------------------------------
+# Resume View / Download Route (Module 6)
+# ---------------------------------------------------------
+
+@student_bp.route('/resume/view', methods=['GET'])
+@student_bp.route('/resume/download', methods=['GET'])
+@login_required
+def view_resume():
+    """
+    View or download the student's current uploaded resume PDF.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+
+    if not user or not user.has_resume():
+        flash("No uploaded resume found. Please upload your resume first.", "warning")
+        return redirect(url_for('student.upload_resume'))
+
+    upload_folder = current_app.config.get(
+        'UPLOAD_FOLDER',
+        str(Path(current_app.root_path) / 'static' / 'uploads' / 'resumes')
+    )
+
+    return send_from_directory(
+        upload_folder,
+        user.resume_filename,
+        mimetype='application/pdf',
+        as_attachment=False
+    )
+
+
+# ---------------------------------------------------------
+# Skills Management Routes (Module 7)
+# ---------------------------------------------------------
+
+@student_bp.route('/skills', methods=['GET'])
+@login_required
+def skills_manager():
+    """
+    Display the student's extracted skills and allow manual add/remove.
+    GET: Renders the skills management page.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+
+    if not user:
+        flash("User session invalid. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    current_skills = user.get_skills()
+    # Build addable skills list: exclude what the user already has
+    addable_skills = [s for s in SKILL_LIBRARY if s not in current_skills]
+
+    return render_template(
+        'student/skills.html',
+        user=user,
+        skills=current_skills,
+        addable_skills=addable_skills
+    )
+
+
+@student_bp.route('/skills/update', methods=['POST'])
+@login_required
+def update_skills():
+    """
+    Handle add or remove skill actions from the skills management page.
+    POST params:
+        action     : 'add' | 'remove'
+        skill      : skill name string
+        custom_skill: free-text custom skill (used when action='add' and skill='__custom__')
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+
+    if not user:
+        flash("User session invalid. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    action = request.form.get('action', '').strip()
+    skill_value = request.form.get('skill', '').strip()
+    custom_skill = request.form.get('custom_skill', '').strip()
+
+    current_skills = user.get_skills()
+
+    if action == 'remove':
+        if skill_value in current_skills:
+            current_skills.remove(skill_value)
+            user.save_skills(current_skills)
+            flash(f"'{skill_value}' removed from your skills.", "success")
+        else:
+            flash("Skill not found in your list.", "warning")
+
+    elif action == 'add':
+        # Determine the skill to add — dropdown selection or free-text input
+        if skill_value == '__custom__':
+            skill_to_add = custom_skill
+        else:
+            skill_to_add = skill_value
+
+        if not skill_to_add:
+            flash("Please select or type a skill to add.", "warning")
+        elif skill_to_add in current_skills:
+            flash(f"'{skill_to_add}' is already in your skills list.", "warning")
+        elif len(skill_to_add) > 60:
+            flash("Skill name is too long (max 60 characters).", "error")
+        else:
+            current_skills.append(skill_to_add)
+            user.save_skills(current_skills)
+            flash(f"'{skill_to_add}' added to your skills.", "success")
+    else:
+        flash("Unknown action.", "error")
+
+    return redirect(url_for('student.skills_manager'))
+
+
+# ---------------------------------------------------------
 # Action Link Placeholders (To be implemented in future modules)
 # ---------------------------------------------------------
 
@@ -61,12 +302,4 @@ def start_interview():
 def interview_history():
     """Placeholder endpoint for viewing past interview history."""
     flash("Interview history and scorecard analytics will be available in Module 5!", "info")
-    return redirect(url_for('student.dashboard'))
-
-
-@student_bp.route('/resume/upload', methods=['GET'])
-@login_required
-def upload_resume():
-    """Placeholder endpoint for resume upload and analysis."""
-    flash("Resume parsing and skills extraction feature is coming in the next module!", "info")
     return redirect(url_for('student.dashboard'))

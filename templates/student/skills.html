@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}My Skills - InterviewCoach AI{% endblock %}
+
+{% block content %}
+<div class="skills-page-container">
+
+    <!-- Page Header -->
+    <div class="profile-header">
+        <a href="{{ url_for('student.dashboard') }}" class="back-link">&larr; Back to Dashboard</a>
+        <h1 class="profile-title">My Skills</h1>
+        <p class="profile-subtitle">
+            Skills are automatically detected from your resume and used to personalise your interview questions.
+            You can add or remove skills at any time.
+        </p>
+    </div>
+
+    <!-- Current Skills Card -->
+    <div class="skills-section-card">
+        <div class="skills-section-header">
+            <div class="skills-section-title-row">
+                <h2 class="skills-section-title">
+                    <span class="skills-section-icon">🏷️</span>
+                    Detected Skills
+                </h2>
+                <span class="skills-count-badge">{{ skills|length }} skill{{ 's' if skills|length != 1 else '' }}</span>
+            </div>
+            <p class="skills-section-desc">Click the &times; on any badge to remove a skill.</p>
+        </div>
+
+        {% if skills %}
+            <div class="skills-tags-wrap" id="skills-tags">
+                {% for skill in skills %}
+                    <form action="{{ url_for('student.update_skills') }}" method="POST" class="skill-remove-form" id="remove-form-{{ loop.index }}">
+                        <input type="hidden" name="action" value="remove">
+                        <input type="hidden" name="skill" value="{{ skill }}">
+                        <button type="submit" class="skill-badge skill-badge-removable" title="Remove {{ skill }}" aria-label="Remove {{ skill }}">
+                            {{ skill }}
+                            <span class="skill-remove-icon" aria-hidden="true">&times;</span>
+                        </button>
+                    </form>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Empty State -->
+            <div class="skills-empty-state">
+                <div class="skills-empty-icon">🔍</div>
+                <h3 class="skills-empty-title">No Skills on File</h3>
+                <p class="skills-empty-desc">
+                    {% if not user.has_resume() %}
+                        Upload your resume first, then skills will be auto-detected from your PDF.
+                        <br>
+                        <a href="{{ url_for('student.upload_resume') }}" class="auth-link">Upload Resume &rarr;</a>
+                    {% else %}
+                        No recognisable skills were found in your resume, or the PDF may be image-based.
+                        Use the form below to add your skills manually.
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Add Skills Card -->
+    <div class="skills-section-card skills-add-card">
+        <div class="skills-section-header">
+            <h2 class="skills-section-title">
+                <span class="skills-section-icon">➕</span>
+                Add a Skill
+            </h2>
+            <p class="skills-section-desc">
+                Select from the library or type a custom skill not in the list.
+            </p>
+        </div>
+
+        <form action="{{ url_for('student.update_skills') }}" method="POST" class="skills-add-form" id="skills-add-form">
+            <input type="hidden" name="action" value="add">
+
+            <!-- Toggle: Library vs Custom -->
+            <div class="skill-input-toggle-row">
+                <label class="skill-toggle-label">
+                    <input type="radio" name="skill_mode" value="library" id="mode-library" checked
+                           onchange="toggleSkillMode(this.value)">
+                    Choose from library
+                </label>
+                <label class="skill-toggle-label">
+                    <input type="radio" name="skill_mode" value="custom" id="mode-custom"
+                           onchange="toggleSkillMode(this.value)">
+                    Enter custom skill
+                </label>
+            </div>
+
+            <!-- Library dropdown -->
+            <div id="library-panel" class="skill-input-panel">
+                {% if addable_skills %}
+                    <select name="skill" id="skill-select" class="skills-select">
+                        <option value="" disabled selected>— Select a skill —</option>
+                        {% for skill in addable_skills %}
+                            <option value="{{ skill }}">{{ skill }}</option>
+                        {% endfor %}
+                    </select>
+                {% else %}
+                    <p class="skills-all-added-msg">
+                        🎉 You've already added all skills from the library!
+                    </p>
+                    <input type="hidden" name="skill" value="">
+                {% endif %}
+            </div>
+
+            <!-- Custom text input -->
+            <div id="custom-panel" class="skill-input-panel" style="display: none;">
+                <input type="hidden" name="skill" value="__custom__" id="skill-hidden-custom">
+                <input
+                    type="text"
+                    name="custom_skill"
+                    id="custom-skill-input"
+                    class="skills-text-input"
+                    placeholder="e.g. Apache Kafka, Figma, Power Query…"
+                    maxlength="60"
+                    autocomplete="off"
+                >
+            </div>
+
+            <div class="skills-add-actions">
+                <button type="submit" class="btn btn-primary" id="add-skill-btn">
+                    Add Skill
+                </button>
+                <a href="{{ url_for('student.upload_resume') }}" class="btn btn-outline">
+                    Re-scan Resume
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Help Note -->
+    <div class="skills-help-note">
+        <span class="skills-help-icon">💡</span>
+        <p>
+            Skills listed here will be used by the AI to generate relevant, targeted interview questions
+            for your practice sessions. Keep your list accurate for the best results.
+        </p>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleSkillMode(mode) {
+    const libraryPanel = document.getElementById('library-panel');
+    const customPanel = document.getElementById('custom-panel');
+    const skillSelect = document.getElementById('skill-select');
+    const customInput = document.getElementById('custom-skill-input');
+
+    if (mode === 'library') {
+        libraryPanel.style.display = '';
+        customPanel.style.display = 'none';
+        if (skillSelect) skillSelect.name = 'skill';
+        if (customInput) customInput.name = 'custom_skill';
+        // Remove the hidden override
+        const hiddenCustom = document.getElementById('skill-hidden-custom');
+        if (hiddenCustom) hiddenCustom.name = '';
+    } else {
+        libraryPanel.style.display = 'none';
+        customPanel.style.display = '';
+        if (skillSelect) skillSelect.name = '';
+        // Restore hidden field so __custom__ is sent as 'skill'
+        const hiddenCustom = document.getElementById('skill-hidden-custom');
+        if (hiddenCustom) hiddenCustom.name = 'skill';
+    }
+}
+
+// Initialise on load
+document.addEventListener('DOMContentLoaded', () => {
+    const modeLibrary = document.getElementById('mode-library');
+    if (modeLibrary && modeLibrary.checked) {
+        toggleSkillMode('library');
+    }
+});
+</script>
+{% endblock %}
