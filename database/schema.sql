@@ -20,6 +20,19 @@ CREATE TABLE IF NOT EXISTS admins (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Interview Sessions table
+CREATE TABLE IF NOT EXISTS interview_sessions (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id            INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    interviewer_gender TEXT    NOT NULL CHECK(interviewer_gender IN ('male', 'female')),
+    interviewer_name   TEXT    NOT NULL,
+    job_role           TEXT    NOT NULL,
+    status             TEXT    NOT NULL DEFAULT 'setup'
+                               CHECK(status IN ('setup', 'in_progress', 'completed')),
+    created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_admins_email ON admins(email);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON interview_sessions(user_id);

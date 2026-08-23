@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Interview Setup - InterviewCoach AI{% endblock %}
+
+{% block content %}
+<div class="interview-setup-container">
+    <!-- Header -->
+    <div class="profile-header">
+        <a href="{{ url_for('student.dashboard') }}" class="back-link">&larr; Back to Dashboard</a>
+        <h1 class="profile-title">Interview Setup</h1>
+        <p class="profile-subtitle">
+            Configure your AI interviewer persona and target job role to customize your mock interview session.
+        </p>
+    </div>
+
+    <!-- Setup Form Card -->
+    <div class="setup-form-card">
+        <form action="{{ url_for('student.interview_setup') }}" method="POST" class="setup-form" id="interview-setup-form">
+            
+            <!-- Step 1: Choose Interviewer Persona -->
+            <div class="setup-section">
+                <div class="setup-section-header">
+                    <span class="setup-step-badge">Step 1</span>
+                    <h2 class="setup-section-title">Select Your AI Interviewer</h2>
+                    <p class="setup-section-desc">Choose the persona you would like to conduct your mock interview.</p>
+                </div>
+
+                <div class="persona-grid">
+                    <!-- Male Persona Card -->
+                    <label class="persona-card {% if form_data.get('interviewer_gender', 'male') == 'male' %}selected{% endif %}" id="card-male">
+                        <input 
+                            type="radio" 
+                            name="interviewer_gender" 
+                            value="male" 
+                            class="persona-radio" 
+                            {% if form_data.get('interviewer_gender', 'male') == 'male' %}checked{% endif %}
+                            onchange="selectPersona('male', 'Alex Walker')"
+                        >
+                        <div class="persona-radio-custom"></div>
+                        <div class="persona-avatar-wrapper avatar-male">
+                            <span class="persona-avatar-icon">👨‍💼</span>
+                        </div>
+                        <div class="persona-info">
+                            <h3 class="persona-name">Alex</h3>
+                            <span class="persona-tag persona-tag-male">Male Persona</span>
+                            <p class="persona-desc">Analytical and structured questioning with a focus on problem-solving methodology.</p>
+                        </div>
+                    </label>
+
+                    <!-- Female Persona Card -->
+                    <label class="persona-card {% if form_data.get('interviewer_gender') == 'female' %}selected{% endif %}" id="card-female">
+                        <input 
+                            type="radio" 
+                            name="interviewer_gender" 
+                            value="female" 
+                            class="persona-radio" 
+                            {% if form_data.get('interviewer_gender') == 'female' %}checked{% endif %}
+                            onchange="selectPersona('female', 'Sarah Jenkins')"
+                        >
+                        <div class="persona-radio-custom"></div>
+                        <div class="persona-avatar-wrapper avatar-female">
+                            <span class="persona-avatar-icon">👩‍💼</span>
+                        </div>
+                        <div class="persona-info">
+                            <h3 class="persona-name">Sarah</h3>
+                            <span class="persona-tag persona-tag-female">Female Persona</span>
+                            <p class="persona-desc">Comprehensive and scenario-focused evaluation with attention to communication clarity.</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Step 2: Customize Interviewer Name -->
+            <div class="setup-section">
+                <div class="setup-section-header">
+                    <span class="setup-step-badge">Step 2</span>
+                    <h2 class="setup-section-title">Interviewer Name</h2>
+                    <p class="setup-section-desc">You can use a suggested name or customize it as you prefer.</p>
+                </div>
+
+                <div class="setup-field-group">
+                    <label for="interviewer_name" class="form-label">Interviewer Display Name <span class="required-star">*</span></label>
+                    <div class="name-input-row">
+                        <input 
+                            type="text" 
+                            name="interviewer_name" 
+                            id="interviewer_name" 
+                            class="form-input setup-input" 
+                            placeholder="e.g. Alex Walker"
+                            value="{{ form_data.get('interviewer_name', 'Alex Walker') }}" 
+                            maxlength="50" 
+                            required
+                        >
+                        <div class="name-presets">
+                            <span class="preset-label">Quick Suggestions:</span>
+                            <button type="button" class="btn-preset" onclick="setName('Alex Walker')">Alex Walker</button>
+                            <button type="button" class="btn-preset" onclick="setName('Sarah Jenkins')">Sarah Jenkins</button>
+                            <button type="button" class="btn-preset" onclick="setName('Dr. Marcus Vance')">Dr. Marcus Vance</button>
+                            <button type="button" class="btn-preset" onclick="setName('Elena Rostova')">Elena Rostova</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Target Job Role -->
+            <div class="setup-section">
+                <div class="setup-section-header">
+                    <span class="setup-step-badge">Step 3</span>
+                    <h2 class="setup-section-title">Target Job Role</h2>
+                    <p class="setup-section-desc">Select the position you are practicing for to generate tailored questions.</p>
+                </div>
+
+                <div class="setup-field-group">
+                    <label for="job_role" class="form-label">Position / Job Role <span class="required-star">*</span></label>
+                    <select name="job_role" id="job_role" class="form-input setup-select" onchange="handleRoleChange(this.value)" required>
+                        <option value="" disabled {% if not form_data.get('job_role') %}selected{% endif %}>— Select a target role —</option>
+                        {% for role in job_roles %}
+                            <option value="{{ role }}" {% if form_data.get('job_role') == role %}selected{% endif %}>
+                                {{ role }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Custom Role Input (Shown when 'Other' is selected) -->
+                <div class="setup-field-group custom-role-wrapper" id="custom-role-group" style="{% if form_data.get('job_role') != 'Other' %}display: none;{% endif %}">
+                    <label for="custom_role" class="form-label">Please specify your target role <span class="required-star">*</span></label>
+                    <input 
+                        type="text" 
+                        name="custom_role" 
+                        id="custom_role" 
+                        class="form-input setup-input" 
+                        placeholder="e.g. Cloud Security Architect, Product Manager…"
+                        value="{{ form_data.get('custom_role', '') }}" 
+                        maxlength="80"
+                    >
+                    <span class="form-hint">Enter your specific position title (max 80 characters).</span>
+                </div>
+            </div>
+
+            <!-- Notice Banner -->
+            <div class="setup-info-banner">
+                <span class="setup-info-icon">💡</span>
+                <div class="setup-info-content">
+                    <strong>Tailored Session:</strong>
+                    Your uploaded resume and detected skills will be combined with this configuration to formulate realistic interview questions.
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="setup-actions">
+                <button type="submit" class="btn btn-primary btn-setup-submit" id="submit-setup-btn">
+                    <span>🚀 Confirm & Setup Session</span>
+                </button>
+                <a href="{{ url_for('student.dashboard') }}" class="btn btn-outline">
+                    Cancel
+                </a>
+            </div>
+
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function selectPersona(gender, suggestedName) {
+    const cardMale = document.getElementById('card-male');
+    const cardFemale = document.getElementById('card-female');
+    const nameInput = document.getElementById('interviewer_name');
+
+    if (gender === 'male') {
+        cardMale.classList.add('selected');
+        cardFemale.classList.remove('selected');
+    } else {
+        cardFemale.classList.add('selected');
+        cardMale.classList.remove('selected');
+    }
+
+    // Update name input if it is empty or matching a default suggested name
+    if (nameInput && (!nameInput.value.trim() || nameInput.value === 'Alex Walker' || nameInput.value === 'Sarah Jenkins')) {
+        nameInput.value = suggestedName;
+    }
+}
+
+function setName(name) {
+    const nameInput = document.getElementById('interviewer_name');
+    if (nameInput) {
+        nameInput.value = name;
+        nameInput.focus();
+    }
+}
+
+function handleRoleChange(value) {
+    const customGroup = document.getElementById('custom-role-group');
+    const customInput = document.getElementById('custom_role');
+    
+    if (value === 'Other') {
+        customGroup.style.display = 'flex';
+        customInput.setAttribute('required', 'required');
+        customInput.focus();
+    } else {
+        customGroup.style.display = 'none';
+        customInput.removeAttribute('required');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const roleSelect = document.getElementById('job_role');
+    if (roleSelect) {
+        handleRoleChange(roleSelect.value);
+    }
+});
+</script>
+{% endblock %}

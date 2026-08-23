@@ -14,9 +14,41 @@ from flask import (
 from werkzeug.utils import secure_filename
 from models.user import User
 from services.resume_parser import extract_skills_from_pdf, SKILL_LIBRARY
+from models.interview_session import InterviewSession
 from utils.decorators import login_required
 
 student_bp = Blueprint('student', __name__, url_prefix='/student')
+
+# Predefined job roles for the interview setup form.
+# Used by both the POST validator and the template dropdown.
+JOB_ROLES = [
+    "Generative AI Engineer",
+    "Prompt Engineer",
+    "AI/ML Engineer",
+    "Data Analyst",
+    "Data Scientist",
+    "Data Engineer",
+    "Business Analyst",
+    "Business Intelligence (BI) Developer",
+    "Cloud Engineer",
+    "Cloud Solutions Architect",
+    "DevOps Engineer",
+    "Site Reliability Engineer (SRE)",
+    "Software Engineer",
+    "Full Stack Developer",
+    "Frontend Developer",
+    "Backend Developer",
+    "Mobile App Developer",
+    "QA/Test Automation Engineer",
+    "Cybersecurity Analyst",
+    "Product Manager",
+    "UI/UX Designer",
+    "Digital Marketing Analyst",
+    "HR Executive",
+    "Finance Analyst",
+    "Operations Executive",
+    "Other",
+]
 
 MAX_RESUME_SIZE = 15 * 1024 * 1024  # 15 MB
 ALLOWED_EXTENSIONS = {'pdf'}
@@ -41,8 +73,9 @@ def dashboard():
         return redirect(url_for('auth.logout'))
 
     # Dynamic metrics based on student data
+    user_sessions = InterviewSession.get_by_user(user.id)
     metrics = {
-        "total_interviews": 0,
+        "total_interviews": len(user_sessions),
         "avg_score": "N/A",
         "has_resume": user.has_resume(),
         "resume_filename": user.resume_filename,
@@ -286,20 +319,98 @@ def update_skills():
 
 
 # ---------------------------------------------------------
-# Action Link Placeholders (To be implemented in future modules)
+# Interview Setup Routes (Module 8)
 # ---------------------------------------------------------
 
-@student_bp.route('/interviews/new', methods=['GET'])
+@student_bp.route('/interviews/new', methods=['GET', 'POST'])
 @login_required
-def start_interview():
-    """Placeholder endpoint for starting a new interview session."""
-    flash("The AI Interview Engine will be unlocked in Module 4!", "info")
-    return redirect(url_for('student.dashboard'))
+def interview_setup():
+    """
+    Interview Setup page.
+    GET:  Render the setup form (gender selector, interviewer name, job role).
+    POST: Validate inputs, persist a new interview session, redirect to dashboard
+          with an informational flash (interview room built in Module 11).
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
 
+    if not user:
+        flash("User session invalid. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    if request.method == 'POST':
+        gender = request.form.get('interviewer_gender', '').strip()
+        name   = request.form.get('interviewer_name', '').strip()
+        role   = request.form.get('job_role', '').strip()
+        custom = request.form.get('custom_role', '').strip()
+
+        errors = []
+
+        # ── Validate gender ──────────────────────────────────────────────
+        if gender not in ('male', 'female'):
+            errors.append("Please select an interviewer (Male or Female).")
+
+        # ── Validate interviewer name ────────────────────────────────────
+        if not name:
+            errors.append("Please enter a name for your interviewer.")
+        elif len(name) > 50:
+            errors.append("Interviewer name must be 50 characters or fewer.")
+
+        # ── Validate job role ────────────────────────────────────────────
+        if role == 'Other':
+            if not custom:
+                errors.append("Please specify your job role in the custom field.")
+            elif len(custom) > 80:
+                errors.append("Custom job role must be 80 characters or fewer.")
+            else:
+                resolved_role = custom
+        elif role in JOB_ROLES:
+            resolved_role = role
+        else:
+            errors.append("Please select a valid job role from the list.")
+            resolved_role = ''
+
+        if errors:
+            for msg in errors:
+                flash(msg, "error")
+            return render_template(
+                'student/interview_setup.html',
+                user=user,
+                job_roles=JOB_ROLES,
+                form_data=request.form
+            ), 422
+
+        # ── Persist session ──────────────────────────────────────────────
+        InterviewSession.create(
+            user_id=user.id,
+            interviewer_gender=gender,
+            interviewer_name=name,
+            job_role=resolved_role
+        )
+
+        flash(
+            f"Session configured with {name} ({resolved_role}). "
+            "The interview room will be available in an upcoming module — stay tuned!",
+            "info"
+        )
+        return redirect(url_for('student.dashboard'))
+
+    # GET — render empty setup form
+    return render_template(
+        'student/interview_setup.html',
+        user=user,
+        job_roles=JOB_ROLES,
+        form_data={}
+    )
+
+
+# ---------------------------------------------------------
+# Action Link Placeholders (To be implemented in future modules)
+# ---------------------------------------------------------
 
 @student_bp.route('/interviews/history', methods=['GET'])
 @login_required
 def interview_history():
     """Placeholder endpoint for viewing past interview history."""
-    flash("Interview history and scorecard analytics will be available in Module 5!", "info")
+    flash("Interview history and scorecard analytics will be available in a future module!", "info")
     return redirect(url_for('student.dashboard'))

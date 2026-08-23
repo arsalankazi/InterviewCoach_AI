@@ -1665,3 +1665,313 @@ a.skill-badge-more:hover {
   font-size: 0.88rem;
 }
 
+/* ---------------------------------------------------------
+   Interview Setup Styles (Module 8)
+--------------------------------------------------------- */
+.interview-setup-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.setup-form-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(16px);
+}
+
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+}
+
+.setup-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.setup-section:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.setup-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.setup-step-badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.15rem 0.55rem;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 9999px;
+  margin-bottom: 0.25rem;
+}
+
+.setup-section-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.setup-section-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+/* Persona Selection Cards */
+.persona-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.persona-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.02);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  user-select: none;
+}
+
+.persona-card:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateY(-2px);
+}
+
+.persona-card.selected {
+  border-color: var(--accent-primary);
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.12) 0%, rgba(17, 24, 39, 0.7) 100%);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
+}
+
+.persona-radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.persona-radio-custom {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.persona-card.selected .persona-radio-custom {
+  border-color: var(--accent-primary);
+  background-color: var(--accent-primary);
+  box-shadow: inset 0 0 0 3px var(--bg-secondary);
+}
+
+.persona-avatar-wrapper {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  flex-shrink: 0;
+  border: 1px solid var(--border-color);
+}
+
+.avatar-male {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.2));
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.avatar-female {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(168, 85, 247, 0.2));
+  border-color: rgba(236, 72, 153, 0.3);
+}
+
+.persona-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding-right: 1.5rem;
+}
+
+.persona-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.persona-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+  display: inline-block;
+  align-self: flex-start;
+}
+
+.persona-tag-male {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.persona-tag-female {
+  background: rgba(236, 72, 153, 0.15);
+  color: #f472b6;
+  border: 1px solid rgba(236, 72, 153, 0.3);
+}
+
+.persona-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-top: 0.25rem;
+}
+
+/* Fields & Custom Inputs */
+.setup-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.setup-input,
+.setup-select {
+  padding: 0.8rem 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.setup-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.setup-input:focus,
+.setup-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.required-star {
+  color: var(--error);
+}
+
+.name-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.name-presets {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.preset-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.btn-preset {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 9999px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  padding: 0.25rem 0.65rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.btn-preset:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.custom-role-wrapper {
+  margin-top: 0.5rem;
+  animation: slideDown 0.25s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Info Banner */
+.setup-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem 1.25rem;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.setup-info-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.setup-info-content strong {
+  color: var(--text-primary);
+}
+
+/* Setup Actions */
+.setup-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.btn-setup-submit {
+  font-size: 1rem;
+  padding: 0.85rem 2rem;
+}
+
