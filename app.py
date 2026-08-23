@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 import click
 from flask import Flask
 from config import get_config
@@ -7,6 +8,16 @@ import database
 from database.schema import init_db
 import routes
 from utils.helpers import api_error
+
+# Ensure .env is loaded as early as possible
+load_dotenv(override=True)
+_api_key = os.environ.get('GEMINI_API_KEY')
+if _api_key:
+    _masked_key = f"{_api_key[:6]}...{_api_key[-4:]}" if len(_api_key) > 10 else f"{_api_key[:3]}..."
+    print(f"[App Startup] GEMINI_API_KEY successfully loaded from .env (Key: {_masked_key})")
+else:
+    print("[App Startup] WARNING: GEMINI_API_KEY is NOT set in environment or .env file.")
+
 
 
 def create_app(config_name=None):

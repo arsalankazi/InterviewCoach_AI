@@ -75,6 +75,11 @@ class InterviewSession:
         db.commit()
         self.status = new_status
 
+    def complete(self):
+        """Mark this interview session as completed."""
+        self.update_status('completed')
+
+
     @classmethod
     def update_status_by_id(cls, session_id: int, new_status: str):
         """Update the lifecycle status for a session by its primary key."""

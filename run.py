@@ -1,5 +1,11 @@
 import os
+from dotenv import load_dotenv
+
+# Load environment before initializing Flask
+load_dotenv(override=True)
+
 from app import create_app
+
 
 # Instantiate the application using environment or default configuration
 env = os.environ.get('FLASK_ENV', 'development')

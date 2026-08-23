@@ -384,7 +384,7 @@ def interview_setup():
             ), 422
 
         # ── Persist session ──────────────────────────────────────────────
-        InterviewSession.create(
+        created_session = InterviewSession.create(
             user_id=user.id,
             interviewer_gender=gender,
             interviewer_name=name,
@@ -392,11 +392,10 @@ def interview_setup():
         )
 
         flash(
-            f"Session configured with {name} ({resolved_role}). "
-            "The interview room will be available in an upcoming module — stay tuned!",
-            "info"
+            f"Interview session with {name} ({resolved_role}) configured! Welcome to your interview room.",
+            "success"
         )
-        return redirect(url_for('student.dashboard'))
+        return redirect(url_for('student.interview_room', session_id=created_session.id))
 
     # GET — render empty setup form
     return render_template(
@@ -405,6 +404,78 @@ def interview_setup():
         job_roles=JOB_ROLES,
         form_data={}
     )
+
+
+# ---------------------------------------------------------
+# Virtual AI Interview Room Routes (Module 11)
+# ---------------------------------------------------------
+
+@student_bp.route('/interviews/<int:session_id>/room', methods=['GET'])
+@login_required
+def interview_room(session_id: int):
+    """
+    Virtual AI Interview Room interface (Module 11).
+    Renders split-screen view with interviewer profile card and interactive chat stream.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+    if not user:
+        flash("User session invalid. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    interview_session = InterviewSession.get_by_id(session_id)
+    if not interview_session:
+        flash(f"Interview session #{session_id} not found.", "error")
+        return redirect(url_for('student.dashboard'))
+
+    # Authorization check: verify session belongs to logged-in student
+    if interview_session.user_id != user.id:
+        flash("You do not have permission to access this interview session.", "error")
+        return redirect(url_for('student.dashboard'))
+
+    # Retrieve existing message turns for this session
+    messages = InterviewMessage.get_by_session(session_id)
+
+    return render_template(
+        'student/interview_room.html',
+        user=user,
+        interview_session=interview_session,
+        messages=messages
+    )
+
+
+@student_bp.route('/interviews/<int:session_id>/end', methods=['POST'])
+@login_required
+def end_interview(session_id: int):
+    """
+    End active interview session and mark status as 'completed' (Module 11).
+    Redirects candidate to the student dashboard with a completion flash summary.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+    if not user:
+        flash("User session invalid. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    interview_session = InterviewSession.get_by_id(session_id)
+    if not interview_session:
+        flash(f"Interview session #{session_id} not found.", "error")
+        return redirect(url_for('student.dashboard'))
+
+    if interview_session.user_id != user.id:
+        flash("You do not have permission to modify this interview session.", "error")
+        return redirect(url_for('student.dashboard'))
+
+    interview_session.complete()
+    message_count = InterviewMessage.get_count_by_session(session_id)
+
+    flash(
+        f"Interview session with {interview_session.interviewer_name} ({interview_session.job_role}) "
+        f"has ended. ({message_count} turns recorded). Great job!",
+        "success"
+    )
+    return redirect(url_for('student.dashboard'))
+
 
 
 # ---------------------------------------------------------

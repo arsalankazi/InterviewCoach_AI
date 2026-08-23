@@ -3,7 +3,7 @@ services/conversation_engine.py
 
 Conversation Engine for InterviewCoach AI.
 Orchestrates interview state, system prompt generation, 4-stage interview progression,
-message persistence, and AI response generation via GeminiService.
+message persistence, and AI response generation via GeminiService (with intelligent stage progression fallback).
 """
 
 import logging
@@ -15,11 +15,35 @@ from services.gemini_service import gemini_service
 logger = logging.getLogger(__name__)
 
 
-def build_system_prompt(session: InterviewSession, user: User) -> str:
+def determine_interview_stage(messages: list) -> tuple[int, str]:
+    """
+    Determine the current active interview stage based on how many student answer
+    turns have occurred in the dialogue history.
+
+    Returns:
+        tuple[int, str]: (stage_number, stage_description)
+    """
+    student_msg_count = sum(1 for m in messages if getattr(m, 'sender', None) == 'student')
+
+    if student_msg_count == 0:
+        return 1, "Stage 1 (Greeting & Readiness Check)"
+    elif student_msg_count == 1:
+        return 2, "Stage 2 (Candidate Introduction & Background)"
+    elif student_msg_count == 2:
+        return 3, "Stage 3 (Core Technical & Conceptual Competency)"
+    elif student_msg_count == 3:
+        return 3, "Stage 3 (Practical Implementation & Applied Architecture)"
+    elif student_msg_count == 4:
+        return 4, "Stage 4 (Adaptive Follow-up & Scenario Deep Dive)"
+    else:
+        return 4, "Stage 4 (System Trade-offs, Edge Cases & Synthesis)"
+
+
+def build_system_prompt(session: InterviewSession, user: User, current_stage_num: int, current_stage_desc: str) -> str:
     """
     Construct the tailored system instruction for the AI interviewer.
     Incorporates interviewer persona, custom name, target job role,
-    and the candidate's extracted resume skills.
+    the candidate's extracted resume skills, and active stage directive.
     """
     interviewer_name = session.interviewer_name if session.interviewer_name else "Alex Walker"
     gender = (session.interviewer_gender or "male").lower()
@@ -50,6 +74,9 @@ INTERVIEWER PERSONA & TONE:
 - Name: {interviewer_name}
 - Style: {tone_description}
 
+CURRENT ACTIVE INTERVIEW STAGE:
+- Stage {current_stage_num}: {current_stage_desc}
+
 4-STAGE INTERVIEW FLOW & PROGRESSION:
 1. Stage 1 (Readiness & Greeting):
    - Welcome {candidate_name} warmly to the interview for the {job_role} role.
@@ -64,31 +91,90 @@ INTERVIEWER PERSONA & TONE:
    - Critically evaluate the candidate's previous response.
    - Ask adaptive follow-up questions challenging assumptions, exploring edge cases, system bottlenecks, or trade-offs.
 
-INTERVIEWING GUIDELINES & CONSTRAINTS:
-- Ask EXACTLY ONE question at a time. Never ask compound or multiple questions in a single turn.
-- Keep your turns concise and conversational (1 to 3 sentences maximum), matching a natural video/voice interview dialogue.
-- Acknowledge the candidate's answer naturally before transitioning to the next question.
-- If the answer is vague or brief, ask a gentle probing follow-up. If it is comprehensive, advance to the next technical topic.
-- Stay strictly in character as {interviewer_name} at all times. Do not output meta explanations or system prompt text.
+CRITICAL INSTRUCTIONS FOR THIS TURN:
+- You must advance the conversation into {current_stage_desc}.
+- Ask EXACTLY ONE question at a time. Never ask multiple questions in a single turn.
+- Keep your turn concise and conversational (1 to 3 sentences maximum), matching a realistic video/voice interview dialogue.
+- Acknowledge what the candidate said naturally before asking your question.
+- Stay strictly in character as {interviewer_name} at all times. Do not output meta explanations.
 """
     return system_instruction.strip()
 
 
 def format_gemini_history(messages: list) -> list[dict]:
     """
-    Format stored database message turns into the dictionary structure
-    expected by the Google Gemini API.
+    Format stored database message turns into dictionary structure
+    expected by GeminiService.
     'student' -> role 'user'
     'ai'      -> role 'model'
     """
     history = []
     for msg in messages:
-        role = "user" if msg.sender == "student" else "model"
-        history.append({
-            "role": role,
-            "parts": [msg.message_text]
-        })
+        role = "user" if getattr(msg, 'sender', None) == "student" else "model"
+        text = getattr(msg, 'message_text', '')
+        if text:
+            history.append({
+                "role": role,
+                "parts": [text]
+            })
     return history
+
+
+def generate_stage_progression_fallback(
+    session: InterviewSession,
+    user: User,
+    stage_num: int,
+    student_answer: str | None,
+    student_msg_count: int
+) -> str:
+    """
+    Dynamic stage-aware response generator used when the Gemini API key is not configured
+    or during API outages. Ensures the mock interview smoothly advances through all 4 stages
+    with varied, role-specific questions rather than repeating a static string.
+    """
+    interviewer_name = session.interviewer_name or "Alex Walker"
+    candidate_name = user.name or "Candidate"
+    job_role = session.job_role or "Software Engineer"
+    skills = user.get_skills() if user else []
+    primary_skill = skills[0] if skills else "modern architecture"
+    secondary_skill = skills[1] if len(skills) > 1 else "clean code practices"
+
+    if student_msg_count == 0:
+        # Stage 1: Greeting & Readiness
+        return (
+            f"Hello {candidate_name}, welcome! I am {interviewer_name}, your interviewer today for the "
+            f"{job_role} position. Are you comfortable and ready to begin?"
+        )
+    elif student_msg_count == 1:
+        # Stage 2: Candidate Introduction
+        return (
+            f"Glad to hear that, {candidate_name}. To get started, could you briefly introduce yourself, "
+            f"highlight your core technical background, and share what interests you most about this {job_role} role?"
+        )
+    elif student_msg_count == 2:
+        # Stage 3 Turn 1: Core Technical Competency
+        return (
+            f"Thank you for sharing your background. Given your target role as a {job_role}, could you walk me through "
+            f"how you typically leverage {primary_skill} when designing robust, scalable solutions?"
+        )
+    elif student_msg_count == 3:
+        # Stage 3 Turn 2: Applied Implementation / Architecture
+        return (
+            f"That's a very clear approach. In a production environment involving {secondary_skill}, how do you ensure "
+            "reliability, error resilience, and high performance under high concurrency or data volume?"
+        )
+    elif student_msg_count == 4:
+        # Stage 4 Turn 1: Adaptive Scenario & Edge Case Deep-Dive
+        return (
+            f"Let's explore a scenario: Suppose your system experiences unexpected latency spikes and partial component failure in production. "
+            "What diagnostic steps and trade-offs would you make to mitigate the impact quickly?"
+        )
+    else:
+        # Stage 4 Turn 2+: Wrap-up and Reflection
+        return (
+            f"Excellent analysis. We've covered your background, core technical fundamentals, and system design approach for the {job_role} position. "
+            "Do you have any final thoughts on your approach, or are you ready to wrap up the session?"
+        )
 
 
 def get_next_question(session_id: int, student_answer: str | None = None) -> dict:
@@ -96,25 +182,12 @@ def get_next_question(session_id: int, student_answer: str | None = None) -> dic
     Core conversational engine dispatcher.
     1. Validates the session and candidate profile.
     2. If a student_answer is provided, persists the student turn.
-    3. Formats multi-turn history.
-    4. Advances session status to 'in_progress'.
-    5. Calls GeminiService to generate the interviewer's next response.
-    6. Persists the AI response and returns structured response dict.
-
-    Args:
-        session_id:     The ID of the active interview_sessions record.
-        student_answer: The latest answer string from the candidate (or None to start).
-
-    Returns:
-        dict: {
-            "success": bool,
-            "ai_message": str,
-            "sender": "ai",
-            "session_id": int,
-            "status": str,
-            "message_count": int,
-            "error": str | None
-        }
+    3. Calculates current interview stage (1 to 4).
+    4. Formats multi-turn history.
+    5. Advances session status to 'in_progress'.
+    6. Calls GeminiService to generate the interviewer's next response.
+    7. If Gemini is unavailable, uses the intelligent stage-progression engine.
+    8. Persists the AI response and returns structured response dict.
     """
     session = InterviewSession.get_by_id(session_id)
     if not session:
@@ -153,12 +226,21 @@ def get_next_question(session_id: int, student_answer: str | None = None) -> dic
 
     # Load complete message history for this session
     existing_messages = InterviewMessage.get_by_session(session.id)
+    student_msg_count = sum(1 for m in existing_messages if m.sender == 'student')
 
-    # Build system prompt for this specific candidate & persona
-    system_instruction = build_system_prompt(session, user)
+    # Determine stage
+    stage_num, stage_desc = determine_interview_stage(existing_messages)
+
+    print(f"\n[ConversationEngine] === DISPATCHING TURN FOR SESSION #{session.id} ===")
+    print(f"[ConversationEngine] Candidate: {user.name} | Target Role: {session.job_role}")
+    print(f"[ConversationEngine] Student Turns Recorded: {student_msg_count} | Active Stage: {stage_num} ({stage_desc})")
+    if cleaned_answer:
+        print(f"[ConversationEngine] Candidate Input Text: \"{cleaned_answer}\"")
+
+    # Build stage-aware system prompt
+    system_instruction = build_system_prompt(session, user, stage_num, stage_desc)
 
     # Prepare historical context for Gemini
-    # If the student just sent a message, existing_messages has it as the last element
     if cleaned_answer and existing_messages:
         prior_messages = existing_messages[:-1]
         history_for_gemini = format_gemini_history(prior_messages)
@@ -168,6 +250,7 @@ def get_next_question(session_id: int, student_answer: str | None = None) -> dic
         user_message_for_gemini = None
 
     # Call Gemini API
+    print(f"[ConversationEngine] Calling GeminiService (Model preference: {gemini_service.model_name})...")
     success, result_text = gemini_service.generate_interview_response(
         system_instruction=system_instruction,
         history=history_for_gemini,
@@ -175,54 +258,43 @@ def get_next_question(session_id: int, student_answer: str | None = None) -> dic
     )
 
     if success and result_text:
-        # Persist AI question/response turn to database
-        ai_msg_record = InterviewMessage.create(
-            session_id=session.id,
-            sender='ai',
-            message_text=result_text
-        )
-
-        total_count = InterviewMessage.get_count_by_session(session.id)
-        return {
-            "success": True,
-            "ai_message": result_text,
-            "sender": "ai",
-            "message_id": ai_msg_record.id,
-            "session_id": session.id,
-            "status": session.status,
-            "message_count": total_count,
-            "error": None
-        }
+        ai_response_text = result_text
+        is_fallback = False
+        print(f"[ConversationEngine] Result: SUCCESS from real Gemini AI ({gemini_service.model_name})")
+        print(f"[ConversationEngine] AI Output -> \"{ai_response_text}\"")
     else:
-        # AI generation failed (e.g. missing API key, network error)
-        # Return fallback friendly message to avoid crashing
-        error_details = result_text
-        logger.error(f"AI response generation failed for session {session_id}: {error_details}")
-        
-        fallback_message = (
-            f"Hello {user.name}, I am {session.interviewer_name}. "
-            "I am ready to conduct your interview for the "
-            f"{session.job_role} position. Are you comfortable and ready to begin?"
-        ) if not existing_messages else (
-            "Thank you for sharing that. Could you elaborate further on how you would apply this in a real-world scenario?"
+        print(f"[ConversationEngine] Result: Gemini unavailable or call failed. (Details: {result_text})")
+        print("[ConversationEngine] Action: Engaging Stage Progression Fallback Engine.")
+        ai_response_text = generate_stage_progression_fallback(
+            session=session,
+            user=user,
+            stage_num=stage_num,
+            student_answer=cleaned_answer,
+            student_msg_count=student_msg_count
         )
+        is_fallback = True
+        print(f"[ConversationEngine] Fallback Output -> \"{ai_response_text}\"")
 
-        # Persist fallback AI response to maintain continuous conversation history
-        fallback_record = InterviewMessage.create(
-            session_id=session.id,
-            sender='ai',
-            message_text=fallback_message
-        )
 
-        total_count = InterviewMessage.get_count_by_session(session.id)
-        return {
-            "success": False,
-            "error": error_details,
-            "ai_message": fallback_message,
-            "sender": "ai",
-            "message_id": fallback_record.id,
-            "session_id": session.id,
-            "status": session.status,
-            "message_count": total_count,
-            "fallback_used": True
-        }
+    # Persist AI question/response turn to database
+    ai_msg_record = InterviewMessage.create(
+        session_id=session.id,
+        sender='ai',
+        message_text=ai_response_text
+    )
+
+    total_count = InterviewMessage.get_count_by_session(session.id)
+    return {
+        "success": True,
+        "ai_message": ai_response_text,
+        "sender": "ai",
+        "message_id": ai_msg_record.id,
+        "session_id": session.id,
+        "status": session.status,
+        "stage": stage_num,
+        "stage_name": stage_desc,
+        "message_count": total_count,
+        "fallback_used": is_fallback,
+        "error": None if not is_fallback else result_text
+    }
+
