@@ -2630,3 +2630,566 @@ a.skill-badge-more:hover {
 }
 
 
+/* =============================================================
+   Module 10: Voice Integration + Camera + Animated AI Avatar
+   ============================================================= */
+
+/* ── Avatar Speaking Ring ── */
+.avatar-speaking-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+}
+
+/* Two concentric pulse rings rendered as pseudo-elements */
+.avatar-speaking-ring::before,
+.avatar-speaking-ring::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: calc(var(--radius-md) + 6px);
+  border: 2px solid var(--primary-color);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.avatar-speaking-ring::after {
+  inset: -12px;
+  border-radius: calc(var(--radius-md) + 12px);
+  border-color: var(--accent-color);
+}
+
+/* Active: is-speaking — pulse-ring animation fires */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.92); opacity: 0.75; }
+  70%  { transform: scale(1.08); opacity: 0.2;  }
+  100% { transform: scale(1.12); opacity: 0;    }
+}
+
+.avatar-speaking-ring.is-speaking::before {
+  animation: pulse-ring 1.4s ease-out infinite;
+}
+.avatar-speaking-ring.is-speaking::after {
+  animation: pulse-ring 1.4s ease-out infinite 0.5s;
+}
+
+/* ── Avatar Sound Wave Bars ── */
+.avatar-wave-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  height: 16px;
+  margin-top: 6px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.avatar-speaking-ring.is-speaking .avatar-wave-bars {
+  opacity: 1;
+}
+
+@keyframes wave-bar {
+  0%   { height: 3px;  }
+  50%  { height: 14px; }
+  100% { height: 5px;  }
+}
+
+.avatar-wave-bars .wave-bar {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--primary-color);
+  height: 3px;
+  animation: wave-bar 0.6s ease-in-out infinite alternate;
+  animation-play-state: paused;
+}
+
+.avatar-speaking-ring.is-speaking .wave-bar {
+  animation-play-state: running;
+}
+
+.avatar-wave-bars .wave-bar:nth-child(1) { animation-delay: 0.0s; background: var(--primary-color); }
+.avatar-wave-bars .wave-bar:nth-child(2) { animation-delay: 0.1s; background: var(--accent-color);  }
+.avatar-wave-bars .wave-bar:nth-child(3) { animation-delay: 0.2s; background: var(--primary-color); }
+.avatar-wave-bars .wave-bar:nth-child(4) { animation-delay: 0.1s; background: var(--accent-color);  }
+.avatar-wave-bars .wave-bar:nth-child(5) { animation-delay: 0.0s; background: var(--primary-color); }
+
+/* Sidebar avatar wrapper: stack ring + bars vertically */
+.interviewer-avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Camera Self-View Panel ── */
+.camera-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.camera-panel.hidden {
+  display: none;
+}
+
+.camera-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.camera-panel-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#camera-preview {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  transform: scaleX(-1); /* Mirror the self-view */
+  background: rgba(0, 0, 0, 0.35);
+  display: block;
+}
+
+.camera-off-placeholder {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 1.8rem;
+  color: var(--text-muted);
+}
+
+.camera-off-placeholder span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+/* ── Voice Toolbar in Chat Header ── */
+.chat-voice-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-icon-voice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-icon-voice:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-color: var(--primary-color);
+}
+
+.btn-icon-voice:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Muted TTS state */
+#btn-tts-toggle.is-muted {
+  opacity: 0.38;
+  color: var(--text-muted);
+  border-color: var(--border-color);
+}
+
+/* Active mic — listening state */
+#btn-mic.is-listening {
+  color: #ff4d4d;
+  border-color: #ff4d4d;
+  background: rgba(255, 77, 77, 0.12);
+}
+
+/* Small camera toggle button reuse btn-icon-voice style */
+#btn-cam-toggle {
+  font-size: 0.72rem;
+  width: auto;
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+
+/* ── Large Mic Button (camera panel) ── */
+@keyframes mic-ring-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(255, 77, 77, 0.55); }
+  70%  { box-shadow: 0 0 0 12px rgba(255, 77, 77, 0);   }
+  100% { box-shadow: 0 0 0 0   rgba(255, 77, 77, 0);    }
+}
+
+.btn-mic-camera {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-color);
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-mic-camera:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+  border-color: var(--primary-color);
+}
+
+.btn-mic-camera:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-mic-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.btn-mic-label {
+  line-height: 1;
+}
+
+/* Active / listening state */
+.btn-mic-camera.is-listening {
+  color: #ff4d4d;
+  border-color: #ff4d4d;
+  background: rgba(255, 77, 77, 0.1);
+  animation: mic-ring-pulse 1.4s ease-out infinite;
+}
+
+.btn-mic-camera.is-listening .btn-mic-icon {
+  transform: scale(1.15);
+}
+
+.btn-mic-camera.is-listening .btn-mic-label::after {
+  content: '…';
+}
+
+/* ── Mic Listening Badge ── */
+@keyframes mic-pulse {
+  0%, 100% { opacity: 1; transform: scale(1);    }
+  50%       { opacity: 0.55; transform: scale(1.2); }
+}
+
+#mic-listening-badge {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #ff4d4d;
+  letter-spacing: 0.04em;
+}
+
+#mic-listening-badge.visible {
+  display: inline-flex;
+}
+
+.mic-listening-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  animation: mic-pulse 1s ease-in-out infinite;
+}
+
+/* ── Responsive: hide camera on very small screens ── */
+@media (max-width: 600px) {
+  .camera-panel {
+    display: none;
+  }
+  .chat-voice-controls {
+    gap: 0.35rem;
+  }
+  .btn-icon-voice {
+    width: 30px;
+    height: 30px;
+    font-size: 0.85rem;
+  }
+}
+
+
+/* =============================================================
+   Module 10 Polish Enhancements
+   ============================================================= */
+
+/* ── #2 Ambient Professional Background ── */
+.interview-room-wrapper {
+  background:
+    radial-gradient(ellipse 65% 55% at 18% 25%, rgba(99, 102, 241, 0.07) 0%, transparent 68%),
+    radial-gradient(ellipse 55% 65% at 82% 75%, rgba(139, 92, 246, 0.05) 0%, transparent 68%),
+    radial-gradient(ellipse 40% 40% at 50% 0%,  rgba(79, 70, 229, 0.04) 0%, transparent 60%);
+}
+
+/* ── #4 Countdown Overlay ── */
+#countdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: rgba(8, 8, 20, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+#countdown-overlay.hidden {
+  display: none;
+}
+
+.countdown-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.countdown-role-pill {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 0.3rem 1rem;
+  margin-top: -0.25rem;
+}
+
+.countdown-icon {
+  font-size: 2.5rem;
+  margin-bottom: -0.5rem;
+}
+
+@keyframes digit-pop {
+  0%   { transform: scale(1.35); opacity: 0.3; }
+  100% { transform: scale(1);    opacity: 1;   }
+}
+
+#countdown-digit {
+  font-size: 7rem;
+  font-weight: 800;
+  line-height: 1;
+  /* Hard fallback: ensures digit is always visible even if gradient-clip fails */
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary-color, #6366f1), var(--accent-color, #8b5cf6));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: digit-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.countdown-sublabel {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* ── #1 Avatar Thinking Animation ── */
+@keyframes thinking-pulse {
+  0%, 100% { box-shadow: 0 0 0 0px  rgba(139, 92, 246, 0);    }
+  50%       { box-shadow: 0 0 0 10px rgba(139, 92, 246, 0.22); }
+}
+
+.avatar-speaking-ring.is-thinking .interviewer-avatar {
+  animation: thinking-pulse 2.2s ease-in-out infinite;
+}
+
+/* Prevent thinking + speaking from conflicting */
+.avatar-speaking-ring.is-speaking .interviewer-avatar {
+  animation: none;
+}
+
+/* ── #3 Live Timer ── */
+#interview-timer {
+  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.25rem 0.55rem;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ── #8 Stage Progress Bar ── */
+.stage-progress-row {
+  padding: 0.45rem 1.25rem 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(255,255,255,0.015);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.stage-label-text {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.stage-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.stage-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  transition: background 0.4s ease, border-color 0.4s ease, transform 0.3s ease;
+}
+
+.stage-dot.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  transform: scale(1.2);
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.5);
+}
+
+.stage-dot.completed {
+  background: rgba(99, 102, 241, 0.45);
+  border-color: var(--primary-color);
+}
+
+.stage-name-text {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── #7 Thinking Filler Cue ── */
+.thinking-filler-cue {
+  display: none;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.thinking-filler-cue.visible {
+  display: flex;
+  opacity: 1;
+}
+
+.filler-avatar {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* ── #5 Fullscreen Button ── */
+#btn-fullscreen {
+  /* Inherits .btn-icon-voice — no extra styles needed */
+}
+
+/* Hide fullscreen btn if API not supported */
+#btn-fullscreen.hidden {
+  display: none;
+}
+
+/* ── #10 Rotating Tips Banner ── */
+.rotating-tips-card {
+  padding: 1rem 1.1rem;
+}
+
+.rotating-tip-header {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin-bottom: 0.55rem;
+}
+
+.rotating-tip-text {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  min-height: 3.2rem;
+  transition: opacity 0.4s ease;
+}
+
+.rotating-tip-text.fading {
+  opacity: 0;
+}
+
+.tip-dot-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 0.6rem;
+}
+
+.tip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  transition: background 0.3s;
+}
+
+.tip-dot.active {
+  background: var(--primary-color);
+}

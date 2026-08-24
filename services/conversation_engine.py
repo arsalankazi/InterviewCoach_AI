@@ -7,12 +7,50 @@ message persistence, and AI response generation via GeminiService (with intellig
 """
 
 import logging
+import random
 from models.interview_session import InterviewSession
 from models.interview_message import InterviewMessage
 from models.user import User
 from services.gemini_service import gemini_service
 
 logger = logging.getLogger(__name__)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 1 Greeting Variants — randomised so each session opens differently.
+# Placeholders: {interviewer_name}, {candidate_name}, {job_role}
+# ─────────────────────────────────────────────────────────────────────────────
+GREETING_VARIANTS = [
+    # 1. Classic warm welcome
+    (
+        "Hello {candidate_name}, welcome! I'm {interviewer_name}, your interviewer today "
+        "for the {job_role} position. It's great to have you here — are you comfortable "
+        "and ready to get started?"
+    ),
+    # 2. Energetic, role-focused opener
+    (
+        "Hi {candidate_name}! I'm {interviewer_name}. We have an exciting session ahead "
+        "exploring your fit for the {job_role} role. Before we dive in, I just want to "
+        "check — are you all set and ready to begin?"
+    ),
+    # 3. Professional / formal
+    (
+        "Good day, {candidate_name}. I'm {interviewer_name}, conducting today's interview "
+        "for the {job_role} position. I appreciate you taking the time. "
+        "Are you comfortable and ready to proceed?"
+    ),
+    # 4. Conversational / relaxed
+    (
+        "Hey {candidate_name}, glad you could join! I'm {interviewer_name}. "
+        "We'll be having a conversation today around the {job_role} role — "
+        "nothing too formal, just a focused discussion. Ready to kick things off?"
+    ),
+    # 5. Context-leading opener
+    (
+        "Welcome, {candidate_name}. I'm {interviewer_name}, and I'll be walking you "
+        "through today's interview for the {job_role} position. "
+        "Let's make this a productive session — shall we begin?"
+    ),
+]
 
 
 def determine_interview_stage(messages: list) -> tuple[int, str]:
@@ -79,9 +117,9 @@ CURRENT ACTIVE INTERVIEW STAGE:
 
 4-STAGE INTERVIEW FLOW & PROGRESSION:
 1. Stage 1 (Readiness & Greeting):
-   - Welcome {candidate_name} warmly to the interview for the {job_role} role.
-   - Introduce yourself briefly as {interviewer_name}.
-   - Ask the exact readiness check: "Are you comfortable and ready to begin?"
+   - Welcome {candidate_name} naturally and warmly — vary your phrasing each session, do not use a fixed script.
+   - Introduce yourself briefly as {interviewer_name} and mention the {job_role} role.
+   - Close with a friendly readiness check (e.g., 'Are you ready to begin?' or 'Shall we get started?').
 2. Stage 2 (Candidate Introduction):
    - Once the candidate confirms readiness, invite them to introduce themselves, share their background, and explain what excites them about the {job_role} role.
 3. Stage 3 (Core Role & Technical Questions):
@@ -140,10 +178,12 @@ def generate_stage_progression_fallback(
     secondary_skill = skills[1] if len(skills) > 1 else "clean code practices"
 
     if student_msg_count == 0:
-        # Stage 1: Greeting & Readiness
-        return (
-            f"Hello {candidate_name}, welcome! I am {interviewer_name}, your interviewer today for the "
-            f"{job_role} position. Are you comfortable and ready to begin?"
+        # Stage 1: Greeting & Readiness — randomise across 5 variants
+        template = random.choice(GREETING_VARIANTS)
+        return template.format(
+            interviewer_name=interviewer_name,
+            candidate_name=candidate_name,
+            job_role=job_role
         )
     elif student_msg_count == 1:
         # Stage 2: Candidate Introduction

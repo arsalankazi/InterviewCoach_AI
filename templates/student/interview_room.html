@@ -8,7 +8,19 @@
      data-session-status="{{ interview_session.status }}"
      data-interviewer-name="{{ interview_session.interviewer_name }}"
      data-interviewer-gender="{{ interview_session.interviewer_gender }}"
-     data-student-name="{{ user.name }}">
+     data-student-name="{{ user.name }}"
+     data-job-role="{{ interview_session.job_role }}">
+
+    <!-- =========================================================
+         #4 — 3-2-1 Countdown Overlay (shown only on new sessions)
+         ========================================================= -->
+    <div id="countdown-overlay" class="hidden" aria-live="polite" role="status">
+        <span class="countdown-icon">🎙</span>
+        <p class="countdown-label">Get Ready</p>
+        <span id="countdown-digit">3</span>
+        <p class="countdown-sublabel">Interview starting in…</p>
+        <div class="countdown-role-pill" id="countdown-role-pill">{{ interview_session.job_role }}</div>
+    </div>
 
     <!-- Split Screen Grid -->
     <div class="interview-room-grid">
@@ -17,13 +29,29 @@
              LEFT COLUMN: Interviewer Info, Context & Session Controls
              ========================================================= -->
         <aside class="interview-sidebar">
-            
+
             <!-- Interviewer Profile Card -->
             <div class="room-card interviewer-card">
                 <div class="interviewer-header">
-                    <div class="interviewer-avatar {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}">
-                        {% if interview_session.interviewer_gender == 'female' %}👩‍💼{% else %}👨‍💼{% endif %}
+
+                    <!-- Avatar wrapped in speaking-ring animator -->
+                    <div class="interviewer-avatar-wrap">
+                        <div class="avatar-speaking-ring" id="avatar-speaking-ring">
+                            <div class="interviewer-avatar {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}"
+                                 id="sidebar-avatar">
+                                {% if interview_session.interviewer_gender == 'female' %}👩‍💼{% else %}👨‍💼{% endif %}
+                            </div>
+                        </div>
+                        <!-- 5-bar sound-wave equalizer — animated when AI is speaking -->
+                        <div class="avatar-wave-bars" id="avatar-wave-bars" aria-hidden="true">
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                        </div>
                     </div>
+
                     <div class="interviewer-title-group">
                         <div class="live-status-pill">
                             <span class="live-pulse"></span>
@@ -31,7 +59,7 @@
                         </div>
                         <h2 class="interviewer-display-name">{{ interview_session.interviewer_name }}</h2>
                         <span class="interviewer-role-tag">
-                            {% if interview_session.interviewer_gender == 'female' %}Persona: Perceptive & Insightful{% else %}Persona: Analytical & Structured{% endif %}
+                            {% if interview_session.interviewer_gender == 'female' %}Persona: Perceptive &amp; Insightful{% else %}Persona: Analytical &amp; Structured{% endif %}
                         </span>
                     </div>
                 </div>
@@ -59,14 +87,41 @@
                 </div>
             </div>
 
-            <!-- Guidelines & Tips Card -->
-            <div class="room-card tips-card">
-                <h3 class="tips-title">💡 Interview Tips</h3>
-                <ul class="tips-list">
-                    <li><strong>Be concise & structured:</strong> Explain concepts clearly in 2–4 sentences.</li>
-                    <li><strong>Think aloud:</strong> Mention trade-offs, edge cases, and practical examples.</li>
-                    <li><strong>One question at a time:</strong> The AI interviewer will adapt dynamically to each turn.</li>
-                </ul>
+            <!-- #10 — Rotating Interview Tips Card -->
+            <div class="room-card rotating-tips-card" id="rotating-tips-card">
+                <p class="rotating-tip-header">💡 Interview Tip</p>
+                <p class="rotating-tip-text" id="rotating-tip-text">
+                    Maintain a steady pace — rushing signals nervousness, while clarity signals confidence.
+                </p>
+                <div class="tip-dot-row" id="tip-dot-row" aria-hidden="true"></div>
+            </div>
+
+            <!-- Camera Self-View Panel (Module 10) -->
+            <div class="camera-panel" id="camera-panel">
+                <div class="camera-panel-header">
+                    <span class="camera-panel-title">📷 Self View</span>
+                    <button type="button"
+                            id="btn-cam-toggle"
+                            class="btn-icon-voice"
+                            aria-label="Toggle camera"
+                            title="Turn camera on/off">
+                        📷 On
+                    </button>
+                </div>
+                <video id="camera-preview" autoplay muted playsinline aria-label="Camera self preview"></video>
+                <div class="camera-off-placeholder" id="camera-off-placeholder" style="display:none;">
+                    📷 <span>Camera Off</span>
+                </div>
+
+                <!-- Large Mic Button — anchored to camera panel for natural voice + video UX -->
+                <button type="button"
+                        id="btn-mic"
+                        class="btn-mic-camera"
+                        aria-label="Start voice input"
+                        title="Click to speak your answer">
+                    <span class="btn-mic-icon">🎤</span>
+                    <span class="btn-mic-label">Speak Answer</span>
+                </button>
             </div>
 
             <!-- Session Termination Control -->
@@ -113,14 +168,48 @@
                         </div>
                     </div>
                 </div>
-                <div class="chat-turn-counter" id="turn-counter">
-                    <span id="turn-count">{{ messages|length }}</span> message turns
+
+                <!-- Voice Controls + Timer + Fullscreen Toolbar -->
+                <div class="chat-voice-controls" id="chat-voice-controls">
+                    <!-- #3 Live Timer -->
+                    <span id="interview-timer" aria-label="Elapsed interview time" title="Elapsed time">00:00</span>
+
+                    <!-- TTS Mute/Unmute Toggle -->
+                    <button type="button"
+                            id="btn-tts-toggle"
+                            class="btn-icon-voice"
+                            aria-label="Mute AI voice"
+                            title="Mute / Unmute AI voice">
+                        🔊
+                    </button>
+
+
+                    <!-- #5 Fullscreen Toggle -->
+                    <button type="button"
+                            id="btn-fullscreen"
+                            class="btn-icon-voice"
+                            aria-label="Enter fullscreen"
+                            title="Fullscreen mode">
+                        ⛶
+                    </button>
                 </div>
+            </div>
+
+            <!-- #8 Stage Progress Row (below header bar) -->
+            <div class="stage-progress-row" id="stage-progress-row">
+                <span class="stage-label-text">Stage</span>
+                <div class="stage-dots" id="stage-dots" aria-label="Interview stage progress">
+                    <div class="stage-dot active" data-stage="1" title="Stage 1: Greeting"></div>
+                    <div class="stage-dot" data-stage="2" title="Stage 2: Introduction"></div>
+                    <div class="stage-dot" data-stage="3" title="Stage 3: Technical"></div>
+                    <div class="stage-dot" data-stage="4" title="Stage 4: Deep Dive"></div>
+                </div>
+                <span class="stage-name-text" id="stage-name-text">Greeting &amp; Readiness Check</span>
             </div>
 
             <!-- Message Stream Scroll Container -->
             <div class="chat-messages-container" id="chat-messages" role="log" aria-live="polite">
-                
+
                 {% if messages %}
                     {% for msg in messages %}
                         {% if msg.sender == 'ai' %}
@@ -155,6 +244,12 @@
                     {% endfor %}
                 {% endif %}
 
+                <!-- #7 Thinking Filler Cue (shown during API wait) -->
+                <div class="thinking-filler-cue" id="thinking-filler" aria-live="polite">
+                    <span class="filler-avatar" id="filler-avatar-emoji">🤔</span>
+                    <span id="filler-text"></span>
+                </div>
+
                 <!-- Typing / Reasoning Indicator Bubble (Initially hidden) -->
                 <div class="message-turn message-ai typing-wrapper" id="typing-indicator" style="display: none;">
                     <div class="message-avatar-wrap {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}">
@@ -187,7 +282,7 @@
                             <textarea
                                 id="chat-input"
                                 class="chat-textarea"
-                                placeholder="Type your answer here... (Press Enter to send, Shift+Enter for new line)"
+                                placeholder="Type your answer here… (Press Enter to send, Shift+Enter for new line)"
                                 rows="1"
                                 autocomplete="off"
                                 spellcheck="true"
@@ -205,6 +300,12 @@
                         <span>Press <kbd>Enter ↵</kbd> to send</span>
                         <span class="helper-separator">•</span>
                         <span><kbd>Shift</kbd> + <kbd>Enter</kbd> for line break</span>
+                        <span class="helper-separator">•</span>
+                        <!-- Mic listening badge -->
+                        <span id="mic-listening-badge" role="status" aria-live="polite">
+                            <span class="mic-listening-dot"></span>
+                            Listening…
+                        </span>
                     </div>
                 {% else %}
                     <div class="chat-locked-bar">
