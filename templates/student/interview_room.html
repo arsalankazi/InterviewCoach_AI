@@ -22,6 +22,26 @@
         <div class="countdown-role-pill" id="countdown-role-pill">{{ interview_session.job_role }}</div>
     </div>
 
+    <!-- =========================================================
+         AI Analysis Loading Overlay (shown when ending interview)
+         ========================================================= -->
+    <div id="analysis-loading-overlay" class="analysis-loading-overlay hidden" aria-live="polite" role="status">
+        <div class="analysis-loading-card">
+            <div class="analysis-spinner-wrap">
+                <div class="analysis-spinner-ring"></div>
+                <div class="analysis-spinner-icon">🧠</div>
+            </div>
+            <h2 class="analysis-loading-title">Analyzing Your Interview Performance</h2>
+            <p class="analysis-loading-subtitle">
+                Our AI coach is reviewing your complete conversation, evaluating technical accuracy, communication clarity, and preparing your personalized feedback report...
+            </p>
+            <div class="analysis-loading-progress">
+                <div class="analysis-loading-bar"></div>
+            </div>
+            <p class="analysis-loading-hint">Please wait a moment while your performance scorecard is generated.</p>
+        </div>
+    </div>
+
     <!-- Split Screen Grid -->
     <div class="interview-room-grid">
 
@@ -323,10 +343,29 @@
 <script src="{{ url_for('static', filename='js/interview_room.js') }}"></script>
 <script>
     function confirmEndInterview(e) {
-        if (!confirm("Are you sure you want to end this interview session? Your complete conversation will be saved.")) {
+        if (!confirm("Are you sure you want to end this interview session? Your complete conversation will be analyzed by AI.")) {
             if (e && e.preventDefault) e.preventDefault();
             return false;
         }
+
+        const endBtn = document.getElementById('btn-end-interview');
+        const overlay = document.getElementById('analysis-loading-overlay');
+
+        if (endBtn) {
+            endBtn.disabled = true;
+            endBtn.innerHTML = '<span>⏳</span> Analyzing Performance...';
+            endBtn.classList.add('is-loading');
+        }
+
+        if (overlay) {
+            overlay.classList.remove('hidden');
+        }
+
+        // Cancel any active speech/TTS synthesis
+        if (window.speechSynthesis) {
+            try { window.speechSynthesis.cancel(); } catch (_) {}
+        }
+
         return true;
     }
 </script>

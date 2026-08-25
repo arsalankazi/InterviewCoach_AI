@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Interview Results #{{ interview_session.id }} - InterviewCoach AI{% endblock %}
+
+{% block content %}
+<div class="results-container">
+    <!-- Header Banner -->
+    <div class="results-header-card">
+        <div class="results-header-left">
+            <div class="welcome-badge">Performance Report</div>
+            <h1 class="results-title">Interview Analysis &amp; Feedback</h1>
+            <p class="results-subtitle">
+                Target Role: <strong>{{ interview_session.job_role }}</strong> &bull; Interviewer: <strong>{{ interview_session.interviewer_name }}</strong>
+            </p>
+        </div>
+        <div class="results-header-right">
+            <span class="status-pill status-pill-success">Completed</span>
+            <span class="results-date">{{ interview_session.created_at or 'Recently Completed' }}</span>
+        </div>
+    </div>
+
+    {% if not report or not report.analysis_available %}
+    <!-- Analysis Unavailable State -->
+    <div class="results-card analysis-unavailable-card">
+        <div class="unavailable-icon">⚠️</div>
+        <h2 class="unavailable-title">Analysis Unavailable</h2>
+        <p class="unavailable-desc">
+            Your interview session was recorded and marked as completed successfully. However, detailed AI evaluation metrics could not be generated at this time (e.g. due to an API timeout or unavailable connection).
+        </p>
+        <div class="results-actions" style="margin-top: 1.5rem; justify-content: center;">
+            <a href="{{ url_for('student.dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+            <a href="{{ url_for('student.interview_setup') }}" class="btn btn-outline">Start New Interview</a>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Overview Metrics Row -->
+    <div class="results-score-grid">
+        <!-- Overall Score Card -->
+        <div class="score-card score-card-overall">
+            <div class="score-card-header">
+                <span class="score-label">Overall Score</span>
+                <span class="score-tag">Weighted (60/40)</span>
+            </div>
+            <div class="score-ring-wrap">
+                <div class="score-circle-ring" style="--pct: {{ report.overall_score }}%;">
+                    <div class="score-circle-inner">
+                        <span class="score-value">{{ report.overall_score }}</span>
+                        <span class="score-total">/ 100</span>
+                    </div>
+                </div>
+            </div>
+            <p class="score-subtext">Composite performance rating</p>
+        </div>
+
+        <!-- Technical Score Card -->
+        <div class="score-card">
+            <div class="score-card-header">
+                <span class="score-label">Technical Proficiency</span>
+                <span class="score-icon">💻</span>
+            </div>
+            <div class="score-ring-wrap">
+                <div class="score-circle-ring score-ring-technical" style="--pct: {{ report.technical_score }}%;">
+                    <div class="score-circle-inner">
+                        <span class="score-value">{{ report.technical_score }}</span>
+                        <span class="score-total">/ 100</span>
+                    </div>
+                </div>
+            </div>
+            <p class="score-subtext">Accuracy, domain depth &amp; solutions</p>
+        </div>
+
+        <!-- Communication Score Card -->
+        <div class="score-card">
+            <div class="score-card-header">
+                <span class="score-label">Communication &amp; Clarity</span>
+                <span class="score-icon">🗣️</span>
+            </div>
+            <div class="score-ring-wrap">
+                <div class="score-circle-ring score-ring-comm" style="--pct: {{ report.communication_score }}%;">
+                    <div class="score-circle-inner">
+                        <span class="score-value">{{ report.communication_score }}</span>
+                        <span class="score-total">/ 100</span>
+                    </div>
+                </div>
+            </div>
+            <p class="score-subtext">Structure, articulation &amp; delivery</p>
+        </div>
+
+        <!-- Confidence Level Card -->
+        <div class="score-card confidence-card">
+            <div class="score-card-header">
+                <span class="score-label">Confidence Assessment</span>
+                <span class="score-icon">🎯</span>
+            </div>
+            <div class="confidence-badge-wrap">
+                {% if report.confidence_level == 'High' %}
+                <div class="confidence-pill confidence-high">
+                    <span class="confidence-dot"></span>
+                    <span class="confidence-text">High Confidence</span>
+                </div>
+                <p class="confidence-desc">Direct, articulate responses with assertive phrasing and minimal hesitation.</p>
+                {% elif report.confidence_level == 'Low' %}
+                <div class="confidence-pill confidence-low">
+                    <span class="confidence-dot"></span>
+                    <span class="confidence-text">Low Confidence</span>
+                </div>
+                <p class="confidence-desc">Frequent hedging language, hesitant delivery, or very brief answers.</p>
+                {% else %}
+                <div class="confidence-pill confidence-moderate">
+                    <span class="confidence-dot"></span>
+                    <span class="confidence-text">Moderate Confidence</span>
+                </div>
+                <p class="confidence-desc">Good baseline poise with room to articulate key concepts more decisively.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Insights Grid -->
+    <div class="results-feedback-grid">
+        <!-- Key Strengths -->
+        <div class="results-card feedback-card strengths-card">
+            <div class="feedback-card-header">
+                <div class="feedback-icon feedback-icon-green">✨</div>
+                <div>
+                    <h3 class="feedback-title">Key Strengths</h3>
+                    <p class="feedback-subtitle">What you performed well on during this interview</p>
+                </div>
+            </div>
+            {% if report.strengths %}
+            <ul class="feedback-list">
+                {% for item in report.strengths %}
+                <li class="feedback-item feedback-item-strength">
+                    <span class="feedback-bullet">✓</span>
+                    <span>{{ item }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="feedback-empty">No specific strengths recorded.</p>
+            {% endif %}
+        </div>
+
+        <!-- Areas for Growth / Weaknesses -->
+        <div class="results-card feedback-card weaknesses-card">
+            <div class="feedback-card-header">
+                <div class="feedback-icon feedback-icon-amber">⚠️</div>
+                <div>
+                    <h3 class="feedback-title">Areas for Growth</h3>
+                    <p class="feedback-subtitle">Aspects where your answers could be sharper</p>
+                </div>
+            </div>
+            {% if report.weaknesses %}
+            <ul class="feedback-list">
+                {% for item in report.weaknesses %}
+                <li class="feedback-item feedback-item-weakness">
+                    <span class="feedback-bullet">!</span>
+                    <span>{{ item }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="feedback-empty">No critical weaknesses noted.</p>
+            {% endif %}
+        </div>
+
+        <!-- Actionable Improvement Tips / Suggestions -->
+        <div class="results-card feedback-card suggestions-card full-width-card">
+            <div class="feedback-card-header">
+                <div class="feedback-icon feedback-icon-blue">💡</div>
+                <div>
+                    <h3 class="feedback-title">Actionable Recommendations</h3>
+                    <p class="feedback-subtitle">Step-by-step pointers to refine before your next real-world interview</p>
+                </div>
+            </div>
+            {% if report.suggestions %}
+            <div class="suggestions-grid">
+                {% for item in report.suggestions %}
+                <div class="suggestion-pill-item">
+                    <div class="suggestion-number">{{ loop.index }}</div>
+                    <div class="suggestion-content">{{ item }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="feedback-empty">No suggestions recorded.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Bottom Actions -->
+    <div class="results-footer-actions">
+        <a href="{{ url_for('student.dashboard') }}" class="btn btn-outline">
+            &larr; Back to Dashboard
+        </a>
+        <a href="{{ url_for('student.interview_setup') }}" class="btn btn-primary">
+            🚀 Practice Another Interview
+        </a>
+    </div>
+</div>
+{% endblock %}

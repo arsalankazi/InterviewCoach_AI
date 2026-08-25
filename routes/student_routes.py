@@ -14,10 +14,12 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 from models.user import User
-from services.resume_parser import extract_skills_from_pdf, SKILL_LIBRARY
 from models.interview_session import InterviewSession
 from models.interview_message import InterviewMessage
+from models.interview_report import InterviewReport
+from services.resume_parser import extract_skills_from_pdf, SKILL_LIBRARY
 from services.conversation_engine import get_next_question
+from services.analysis_service import generate_interview_analysis
 from utils.decorators import login_required
 
 student_bp = Blueprint('student', __name__, url_prefix='/student')
@@ -448,8 +450,11 @@ def interview_room(session_id: int):
 @login_required
 def end_interview(session_id: int):
     """
-    End active interview session and mark status as 'completed' (Module 11).
-    Redirects candidate to the student dashboard with a completion flash summary.
+    End active interview session (Module 12).
+    Triggers AI performance analysis via Gemini, saves the report to interview_reports,
+    marks the session status='completed', and redirects to the results page.
+    Gracefully handles Gemini API failures — still completes the session and
+    shows an 'analysis unavailable' state on the results page.
     """
     user_id = session.get('student_id') or session.get('user_id')
     user = User.get_by_id(user_id)
@@ -466,15 +471,79 @@ def end_interview(session_id: int):
         flash("You do not have permission to modify this interview session.", "error")
         return redirect(url_for('student.dashboard'))
 
-    interview_session.complete()
-    message_count = InterviewMessage.get_count_by_session(session_id)
+    # Fetch full conversation history for analysis
+    messages = InterviewMessage.get_by_session(session_id)
 
-    flash(
-        f"Interview session with {interview_session.interviewer_name} ({interview_session.job_role}) "
-        f"has ended. ({message_count} turns recorded). Great job!",
-        "success"
+    # Attempt AI analysis — falls back gracefully if Gemini is unavailable
+    try:
+        analysis = generate_interview_analysis(interview_session, messages)
+    except Exception as exc:
+        current_app.logger.error(
+            f"[EndInterview] Unexpected error during analysis for session #{session_id}: {exc}"
+        )
+        analysis = None
+
+    # Persist the report regardless of whether analysis succeeded
+    if analysis:
+        InterviewReport.create(
+            session_id=session_id,
+            technical_score=analysis['technical_score'],
+            communication_score=analysis['communication_score'],
+            overall_score=analysis['overall_score'],
+            confidence_level=analysis['confidence_level'],
+            strengths=analysis['strengths'],
+            weaknesses=analysis['weaknesses'],
+            suggestions=analysis['suggestions'],
+            analysis_available=True
+        )
+    else:
+        InterviewReport.create_unavailable(session_id)
+
+    # Always mark the session completed — analysis failures must not leave it stuck
+    interview_session.complete()
+
+    return redirect(url_for('student.interview_results', session_id=session_id))
+
+
+@student_bp.route('/interviews/<int:session_id>/results', methods=['GET'])
+@login_required
+def interview_results(session_id: int):
+    """
+    Interview Results page (Module 12).
+    Displays the AI-generated performance analysis for a completed session,
+    including score indicators, confidence level, strengths, weaknesses,
+    and actionable improvement suggestions.
+    Shows a friendly 'analysis unavailable' state if the report could not be generated.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+    if not user:
+        flash("User session invalid. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    interview_session = InterviewSession.get_by_id(session_id)
+    if not interview_session:
+        flash(f"Interview session #{session_id} not found.", "error")
+        return redirect(url_for('student.dashboard'))
+
+    if interview_session.user_id != user.id:
+        flash("You do not have permission to view this report.", "error")
+        return redirect(url_for('student.dashboard'))
+
+    # Only completed sessions have results
+    if interview_session.status != 'completed':
+        flash("This interview session has not been completed yet.", "warning")
+        return redirect(url_for('student.interview_room', session_id=session_id))
+
+    # Load the report — may be None for legacy sessions completed before Module 12
+    report = InterviewReport.get_by_session(session_id)
+
+    return render_template(
+        'student/interview_results.html',
+        user=user,
+        interview_session=interview_session,
+        report=report
     )
-    return redirect(url_for('student.dashboard'))
 
 
 

@@ -153,8 +153,12 @@ document.addEventListener('DOMContentLoaded', () => {
         AvatarAnimator.startThinking();
         ThinkingFillerManager.show();
 
-        if (chatInput) chatInput.disabled = true;
-        if (btnSend)   btnSend.disabled   = true;
+        if (chatInput) {
+            chatInput.disabled = true;
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+        }
+        if (btnSend) btnSend.disabled = true;
 
         try {
             const response = await fetch(`/student/interviews/${sessionId}/chat`, {
@@ -187,8 +191,13 @@ document.addEventListener('DOMContentLoaded', () => {
             isSubmitting = false;
 
             if (!isCompleted) {
-                if (chatInput) { chatInput.disabled = false; chatInput.focus(); }
-                if (btnSend)   btnSend.disabled = false;
+                if (chatInput) {
+                    chatInput.disabled = false;
+                    chatInput.value = '';
+                    chatInput.style.height = 'auto';
+                    chatInput.focus();
+                }
+                if (btnSend) btnSend.disabled = false;
             }
             scrollToBottom(true);
         }
@@ -201,6 +210,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!chatInput || isSubmitting || isCompleted) return;
         const text = chatInput.value.trim();
         if (!text) return;
+        
+        // Stop and reset voice input tracking so old transcription is not re-used
+        VoiceInputManager.reset();
+
         appendMessageBubble('student', text);
         chatInput.value        = '';
         chatInput.style.height = 'auto';
@@ -327,6 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =============================================================
     // MODULE 10 — Part B: VoiceInputManager (Speech-to-Text)
     // continuous:true keeps the mic alive through natural pauses.
+    // Preserves existing textarea content when toggled off & on.
     // finalTranscript accumulates confirmed words; interim shows
     // live preview. The mic only stops on explicit user action.
     // =============================================================
@@ -341,13 +355,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnMic.title    = 'Voice input is not supported in this browser. Please use Chrome or Edge.';
                 btnMic.setAttribute('aria-label', 'Voice input unavailable');
             }
-            return { start: () => {}, stop: () => {}, toggle: () => {} };
+            return { start: () => {}, stop: () => {}, toggle: () => {}, reset: () => {} };
         }
 
-        let isListening      = false;  // true while the student intends the mic to be on
-        let recognition      = null;
-        let finalTranscript  = '';     // accumulates all finalized words for this session
-        let restartBlocked   = false;  // prevents restart loop on intentional stop
+        let isListening             = false; // true while the student intends the mic to be on
+        let recognition             = null;
+        let sessionPrefix           = '';    // stores text already in textarea prior to this mic activation
+        let sessionFinalTranscript  = '';    // accumulates confirmed speech for the current mic session
+        let restartBlocked          = false; // prevents restart loop on intentional stop
 
         // ── Build a fresh SpeechRecognition instance ──────────────────
         function buildRecognition() {
@@ -373,24 +388,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     const result = event.results[i];
                     if (result.isFinal) {
                         // Append confirmed word(s) to the accumulator
-                        finalTranscript += result[0].transcript;
+                        sessionFinalTranscript += result[0].transcript;
                     } else {
                         interimChunk += result[0].transcript;
                     }
                 }
 
-                // Show accumulated finals + current interim preview (no duplicates)
-                chatInput.value = finalTranscript + interimChunk;
+                // Append newly transcribed speech (finals + interim) to what was already typed/spoken
+                chatInput.value = sessionPrefix + sessionFinalTranscript + interimChunk;
                 chatInput.style.height = 'auto';
                 chatInput.style.height = `${Math.min(chatInput.scrollHeight, 130)}px`;
             };
 
-            // onend fires when the browser decides to stop (e.g., tab focus loss,
-            // brief silence in continuous mode on some browsers). If the student
-            // hasn't explicitly stopped, restart transparently.
+            // onend fires when browser stops (e.g., brief silence or tab blur).
+            // If the student hasn't explicitly stopped, restart transparently.
             rec.onend = () => {
                 if (isListening && !restartBlocked) {
-                    // Transparent restart — student won't notice the hiccup
+                    // Transparent restart: fold finalized words into sessionPrefix
+                    sessionPrefix = sessionPrefix + sessionFinalTranscript;
+                    sessionFinalTranscript = '';
                     try {
                         recognition = buildRecognition();
                         recognition.start();
@@ -407,7 +423,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 'no-speech' is not a real error — just silence; let onend restart
                 if (event.error === 'no-speech') return;
                 console.warn('[VoiceInput] error:', event.error);
-                // On real errors (not-allowed, aborted) stop cleanly
                 restartBlocked = true;
                 _stopInternal();
             };
@@ -429,9 +444,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // ── Public API ────────────────────────────────────────────────
         function start() {
             if (isListening || isCompleted || !chatInput) return;
-            finalTranscript = '';   // fresh accumulator for each recording session
-            restartBlocked  = false;
-            recognition     = buildRecognition();
+
+            // Preserve whatever text is currently in the textarea
+            const currentVal = chatInput.value || '';
+            sessionPrefix = currentVal.trim() ? currentVal.trimEnd() + ' ' : '';
+            sessionFinalTranscript = '';
+            restartBlocked = false;
+
+            recognition = buildRecognition();
             try {
                 recognition.start();
             } catch (e) {
@@ -442,13 +462,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function stop() {
             if (!isListening) return;
-            restartBlocked = true;   // signal onend not to restart
+            restartBlocked = true; // signal onend not to restart
             isListening    = false;
             if (recognition) {
                 try { recognition.stop(); } catch (_) {}
                 recognition = null;
             }
+            if (chatInput) {
+                // Cleanly commit the combined text into the input
+                chatInput.value = (sessionPrefix + sessionFinalTranscript).trim();
+                chatInput.style.height = 'auto';
+                chatInput.style.height = `${Math.min(chatInput.scrollHeight, 130)}px`;
+            }
+            sessionPrefix = '';
+            sessionFinalTranscript = '';
             _stopInternal();
+        }
+
+        function reset() {
+            if (isListening) {
+                restartBlocked = true;
+                isListening = false;
+                if (recognition) {
+                    try { recognition.stop(); } catch (_) {}
+                    recognition = null;
+                }
+                _stopInternal();
+            }
+            sessionPrefix = '';
+            sessionFinalTranscript = '';
         }
 
         function toggle() { isListening ? stop() : start(); }
@@ -464,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, { capture: true });
         }
 
-        return { start, stop, toggle };
+        return { start, stop, toggle, reset };
     })();
 
 
