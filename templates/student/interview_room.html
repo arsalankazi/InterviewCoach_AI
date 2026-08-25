@@ -14,7 +14,7 @@
     <!-- =========================================================
          #4 — 3-2-1 Countdown Overlay (shown only on new sessions)
          ========================================================= -->
-    <div id="countdown-overlay" class="hidden" aria-live="polite" role="status">
+    <div id="countdown-overlay" class="hidden" style="display: none;" aria-live="polite" role="status">
         <span class="countdown-icon">🎙</span>
         <p class="countdown-label">Get Ready</p>
         <span id="countdown-digit">3</span>
@@ -23,9 +23,9 @@
     </div>
 
     <!-- =========================================================
-         AI Analysis Loading Overlay (shown when ending interview)
+         AI Analysis Loading Overlay (shown ONLY when ending interview)
          ========================================================= -->
-    <div id="analysis-loading-overlay" class="analysis-loading-overlay hidden" aria-live="polite" role="status">
+    <div id="analysis-loading-overlay" class="analysis-loading-overlay hidden" style="display: none;" aria-live="polite" role="status">
         <div class="analysis-loading-card">
             <div class="analysis-spinner-wrap">
                 <div class="analysis-spinner-ring"></div>
@@ -359,6 +359,8 @@
 
         if (overlay) {
             overlay.classList.remove('hidden');
+            overlay.classList.add('visible');
+            overlay.style.display = 'flex';
         }
 
         // Cancel any active speech/TTS synthesis

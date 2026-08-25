@@ -19,9 +19,15 @@ load_dotenv(dotenv_path=env_path)
 
 logger = logging.getLogger(__name__)
 
-# Active Gemini models in preference order
-CANDIDATE_MODELS = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.7-flash"]
-DEFAULT_MODEL = "gemini-3.6-flash"
+# Active Gemini models in preference order (fast, high-quota models first)
+CANDIDATE_MODELS = [
+    "gemini-flash-lite-latest",
+    "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-3-flash-preview"
+]
+DEFAULT_MODEL = "gemini-flash-lite-latest"
 
 
 class GeminiService:

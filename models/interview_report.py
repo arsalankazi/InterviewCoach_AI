@@ -166,6 +166,61 @@ class InterviewReport:
         row = cursor.fetchone()
         return cls._from_row(row) if row else None
 
+    @classmethod
+    def get_all_by_user(cls, user_id: int) -> list:
+        """
+        Retrieve all completed and evaluated interview reports for a given user,
+        ordered chronologically (oldest to newest) to display progress trends.
+        Joins interview_reports with interview_sessions to include session context.
+        """
+        if not user_id:
+            return []
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT 
+                r.id AS report_id,
+                r.session_id,
+                r.technical_score,
+                r.communication_score,
+                r.overall_score,
+                r.confidence_level,
+                r.strengths,
+                r.weaknesses,
+                r.suggestions,
+                r.analysis_available,
+                r.created_at AS report_created_at,
+                s.job_role,
+                s.interviewer_name,
+                s.interviewer_gender,
+                s.created_at AS session_created_at
+            FROM interview_reports r
+            JOIN interview_sessions s ON r.session_id = s.id
+            WHERE s.user_id = ? AND r.analysis_available = 1
+            ORDER BY r.created_at ASC, r.id ASC;
+            """,
+            (user_id,)
+        )
+        rows = cursor.fetchall()
+
+        results = []
+        for row in rows:
+            results.append({
+                'report_id': row['report_id'],
+                'session_id': row['session_id'],
+                'technical_score': row['technical_score'],
+                'communication_score': row['communication_score'],
+                'overall_score': row['overall_score'],
+                'confidence_level': row['confidence_level'],
+                'job_role': row['job_role'],
+                'interviewer_name': row['interviewer_name'],
+                'interviewer_gender': row['interviewer_gender'],
+                'session_created_at': str(row['session_created_at']) if row['session_created_at'] else None,
+                'report_created_at': str(row['report_created_at']) if row['report_created_at'] else None,
+            })
+        return results
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------

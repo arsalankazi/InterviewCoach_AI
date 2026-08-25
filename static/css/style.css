@@ -2966,12 +2966,18 @@ a.skill-badge-more:hover {
     radial-gradient(ellipse 40% 40% at 50% 0%,  rgba(79, 70, 229, 0.04) 0%, transparent 60%);
 }
 
+/* ── Global Utility Helpers ── */
+.hidden,
+[hidden] {
+  display: none !important;
+}
+
 /* ── #4 Countdown Overlay ── */
 #countdown-overlay {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  display: flex;
+  display: none; /* Hidden by default */
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -2981,8 +2987,12 @@ a.skill-badge-more:hover {
   -webkit-backdrop-filter: blur(12px);
 }
 
+#countdown-overlay:not(.hidden) {
+  display: flex;
+}
+
 #countdown-overlay.hidden {
-  display: none;
+  display: none !important;
 }
 
 .countdown-label {
@@ -3597,10 +3607,159 @@ a.skill-badge-more:hover {
   justify-content: space-between;
   gap: 1rem;
   padding-top: 0.5rem;
+/* ── Module 13: Chart.js Performance Visualizations ── */
+.results-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 1.25rem;
+}
+
+.chart-card {
+  padding: 1.5rem 1.75rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.chart-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.chart-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.chart-icon-blue {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.chart-icon-purple {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.chart-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.2rem;
+}
+
+.chart-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.chart-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.chart-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  min-height: 280px;
+}
+
+/* Empty Trend State (< 2 completed interviews) */
+.chart-empty-trend {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2.2rem 1.5rem;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  margin: auto 0;
+}
+
+.chart-empty-icon {
+  font-size: 2.2rem;
+  margin-bottom: 0.75rem;
+}
+
+.chart-empty-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.4rem;
+}
+
+.chart-empty-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  max-width: 380px;
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+}
+
+.chart-empty-steps {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   flex-wrap: wrap;
+  justify-content: center;
+}
+
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.7rem;
+  border-radius: 9999px;
+}
+
+.step-badge-complete {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+.step-badge-pending {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
+}
+
+.step-connector {
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }
 
 @media (max-width: 768px) {
+  .results-charts-grid {
+    grid-template-columns: 1fr;
+  }
+
   .results-feedback-grid {
     grid-template-columns: 1fr;
   }
@@ -3616,11 +3775,12 @@ a.skill-badge-more:hover {
 }
 
 /* ── AI Analysis Loading Overlay (End Interview) ── */
+#analysis-loading-overlay,
 .analysis-loading-overlay {
   position: fixed;
   inset: 0;
   z-index: 99999;
-  display: flex;
+  display: none; /* Hidden by default */
   align-items: center;
   justify-content: center;
   background: rgba(8, 12, 22, 0.88);
@@ -3630,8 +3790,14 @@ a.skill-badge-more:hover {
   animation: fadeInOverlay 0.3s ease-out;
 }
 
+#analysis-loading-overlay.visible,
+.analysis-loading-overlay.visible {
+  display: flex !important;
+}
+
+#analysis-loading-overlay.hidden,
 .analysis-loading-overlay.hidden {
-  display: none;
+  display: none !important;
 }
 
 @keyframes fadeInOverlay {

@@ -509,11 +509,11 @@ def end_interview(session_id: int):
 @login_required
 def interview_results(session_id: int):
     """
-    Interview Results page (Module 12).
+    Interview Results page (Modules 12 & 13).
     Displays the AI-generated performance analysis for a completed session,
-    including score indicators, confidence level, strengths, weaknesses,
-    and actionable improvement suggestions.
-    Shows a friendly 'analysis unavailable' state if the report could not be generated.
+    including score rings, confidence assessment, strengths, weaknesses,
+    actionable improvement recommendations, and rich Chart.js visual analytics
+    (competency breakdown and historical progress trend over time).
     """
     user_id = session.get('student_id') or session.get('user_id')
     user = User.get_by_id(user_id)
@@ -538,11 +538,43 @@ def interview_results(session_id: int):
     # Load the report — may be None for legacy sessions completed before Module 12
     report = InterviewReport.get_by_session(session_id)
 
+    # Prepare chart payloads for Module 13
+    current_chart_data = None
+    progress_chart_data = []
+    has_progress_history = False
+
+    if report and report.analysis_available:
+        current_chart_data = {
+            "labels": ["Technical Score", "Communication Score", "Overall Score"],
+            "scores": [report.technical_score, report.communication_score, report.overall_score]
+        }
+
+        # Retrieve all completed reports for this candidate to construct the trend line chart
+        all_user_reports = InterviewReport.get_all_by_user(user.id)
+        for idx, r in enumerate(all_user_reports, start=1):
+            date_str = (r.get('report_created_at') or r.get('session_created_at') or '')[:10]
+            progress_chart_data.append({
+                "session_id": r['session_id'],
+                "label": f"#{r['session_id']} {r['job_role']}",
+                "short_label": f"#{r['session_id']}",
+                "role": r['job_role'],
+                "date": date_str,
+                "overall_score": r['overall_score'],
+                "technical_score": r['technical_score'],
+                "communication_score": r['communication_score'],
+                "is_current": (r['session_id'] == session_id)
+            })
+
+        has_progress_history = len(progress_chart_data) >= 2
+
     return render_template(
         'student/interview_results.html',
         user=user,
         interview_session=interview_session,
-        report=report
+        report=report,
+        current_chart_data=current_chart_data,
+        progress_chart_data=progress_chart_data,
+        has_progress_history=has_progress_history
     )
 
 

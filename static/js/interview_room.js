@@ -621,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             overlay.classList.remove('hidden');
+            overlay.style.display = 'flex';
             let count = 3;
 
             function tick() {
@@ -628,6 +629,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (count < 1) {
                         // Countdown complete — hide overlay and fire interview
                         overlay.classList.add('hidden');
+                        overlay.style.display = 'none';
                         try { onComplete(); } catch (e) { console.error('[CountdownManager] onComplete failed:', e); }
                         return;
                     }
@@ -647,6 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // If anything goes wrong, don't leave the student frozen — complete immediately
                     console.error('[CountdownManager] tick error, skipping countdown:', err);
                     overlay.classList.add('hidden');
+                    overlay.style.display = 'none';
                     try { onComplete(); } catch (e) { console.error('[CountdownManager] onComplete failed:', e); }
                 }
             }
@@ -841,6 +844,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial Page Load Sequence
     // =============================================================
     scrollToBottom(false);
+
+    // Guarantee that analysis overlay is strictly hidden on initial load
+    const analysisOverlay = document.getElementById('analysis-loading-overlay');
+    if (analysisOverlay) {
+        analysisOverlay.classList.add('hidden');
+        analysisOverlay.classList.remove('visible');
+        analysisOverlay.style.display = 'none';
+    }
 
     if (!isCompleted) {
         const existingTurns = chatContainer

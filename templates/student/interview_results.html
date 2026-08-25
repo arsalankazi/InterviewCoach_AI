@@ -117,6 +117,69 @@
         </div>
     </div>
 
+    <!-- =========================================================
+         Module 13: Interactive Performance Visualizations (Chart.js)
+         ========================================================= -->
+    <div class="results-charts-grid">
+        <!-- 1. Competency Comparison Bar Chart -->
+        <div class="results-card chart-card">
+            <div class="chart-card-header">
+                <div class="chart-header-left">
+                    <div class="chart-icon chart-icon-blue">📊</div>
+                    <div>
+                        <h3 class="chart-title">Competency Breakdown</h3>
+                        <p class="chart-subtitle">Scores across key evaluation dimensions for this interview</p>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-canvas-wrap">
+                <canvas id="competencyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 2. Progress Over Time Line Chart -->
+        <div class="results-card chart-card">
+            <div class="chart-card-header">
+                <div class="chart-header-left">
+                    <div class="chart-icon chart-icon-purple">📈</div>
+                    <div>
+                        <h3 class="chart-title">Progress Over Time</h3>
+                        <p class="chart-subtitle">Historical score trajectory across completed mock interviews</p>
+                    </div>
+                </div>
+                {% if has_progress_history %}
+                <span class="chart-badge">{{ progress_chart_data|length }} Sessions Tracked</span>
+                {% endif %}
+            </div>
+
+            {% if has_progress_history %}
+            <div class="chart-canvas-wrap">
+                <canvas id="progressChart"></canvas>
+            </div>
+            {% else %}
+            <!-- Friendly Encouraging State for < 2 Completed Sessions -->
+            <div class="chart-empty-trend">
+                <div class="chart-empty-icon">🌱</div>
+                <h4 class="chart-empty-title">Progress Trend Unlocks After 2 Sessions</h4>
+                <p class="chart-empty-desc">
+                    Complete at least <strong>2 interview sessions</strong> to see your chronological improvement curve, score trends, and competency trajectory over time.
+                </p>
+                <div class="chart-empty-steps">
+                    <div class="step-badge step-badge-complete">
+                        <span class="step-icon">✓</span>
+                        <span>Session #{{ interview_session.id }} (Completed)</span>
+                    </div>
+                    <span class="step-connector">&rarr;</span>
+                    <div class="step-badge step-badge-pending">
+                        <span class="step-icon">🚀</span>
+                        <span>Next Session (Unlocks Trend)</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
     <!-- Detailed Insights Grid -->
     <div class="results-feedback-grid">
         <!-- Key Strengths -->
@@ -200,4 +263,244 @@
         </a>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if report and report.analysis_available %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Embedded Chart Data -->
+<script id="current-chart-json" type="application/json">
+    {{ current_chart_data|tojson }}
+</script>
+<script id="progress-chart-json" type="application/json">
+    {{ progress_chart_data|tojson }}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // ─────────────────────────────────────────────
+    // Chart.js Global Dark Theme Defaults
+    // ─────────────────────────────────────────────
+    Chart.defaults.color = '#9ca3af';
+    Chart.defaults.font.family = "'Inter', system-ui, -apple-system, sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(17, 24, 39, 0.95)';
+    Chart.defaults.plugins.tooltip.titleColor = '#f9fafb';
+    Chart.defaults.plugins.tooltip.bodyColor = '#e5e7eb';
+    Chart.defaults.plugins.tooltip.borderColor = 'rgba(99, 102, 241, 0.35)';
+    Chart.defaults.plugins.tooltip.borderWidth = 1;
+    Chart.defaults.plugins.tooltip.padding = 12;
+    Chart.defaults.plugins.tooltip.cornerRadius = 8;
+
+    // ─────────────────────────────────────────────
+    // 1. Competency Comparison Bar Chart
+    // ─────────────────────────────────────────────
+    const currentDataEl = document.getElementById('current-chart-json');
+    const competencyCanvas = document.getElementById('competencyChart');
+
+    if (currentDataEl && competencyCanvas) {
+        try {
+            const currentData = JSON.parse(currentDataEl.textContent);
+            const ctx = competencyCanvas.getContext('2d');
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Technical Proficiency', 'Communication & Clarity', 'Overall Performance'],
+                    datasets: [{
+                        label: 'Score (out of 100)',
+                        data: currentData.scores,
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.75)',  // Technical (Blue)
+                            'rgba(16, 185, 129, 0.75)',  // Communication (Green)
+                            'rgba(99, 102, 241, 0.85)'   // Overall (Indigo)
+                        ],
+                        borderColor: [
+                            '#3b82f6',
+                            '#10b981',
+                            '#6366f1'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        borderSkipped: false,
+                        maxBarThickness: 55
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` Score: ${context.parsed.y} / 100`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                stepSize: 20,
+                                callback: (val) => `${val}%`
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.06)',
+                                drawBorder: false
+                            }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        } catch (e) {
+            console.error('Error initializing competency chart:', e);
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // 2. Progress Over Time Line Chart
+    // ─────────────────────────────────────────────
+    const progressDataEl = document.getElementById('progress-chart-json');
+    const progressCanvas = document.getElementById('progressChart');
+
+    if (progressDataEl && progressCanvas) {
+        try {
+            const progressData = JSON.parse(progressDataEl.textContent);
+            if (Array.isArray(progressData) && progressData.length >= 2) {
+                const ctx = progressCanvas.getContext('2d');
+
+                const labels = progressData.map(item => item.label);
+                const overallScores = progressData.map(item => item.overall_score);
+                const technicalScores = progressData.map(item => item.technical_score);
+                const commScores = progressData.map(item => item.communication_score);
+
+                // Highlight point styling for the current session
+                const pointBg = progressData.map(item => item.is_current ? '#ec4899' : '#6366f1');
+                const pointRadius = progressData.map(item => item.is_current ? 8 : 5);
+                const pointHoverRadius = progressData.map(item => item.is_current ? 10 : 8);
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Overall Score',
+                                data: overallScores,
+                                borderColor: '#6366f1',
+                                backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                                fill: true,
+                                tension: 0.35,
+                                borderWidth: 3,
+                                pointBackgroundColor: pointBg,
+                                pointBorderColor: '#ffffff',
+                                pointBorderWidth: 2,
+                                pointRadius: pointRadius,
+                                pointHoverRadius: pointHoverRadius
+                            },
+                            {
+                                label: 'Technical Score',
+                                data: technicalScores,
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'transparent',
+                                borderDash: [4, 4],
+                                tension: 0.35,
+                                borderWidth: 2,
+                                pointRadius: 4,
+                                pointBackgroundColor: '#3b82f6'
+                            },
+                            {
+                                label: 'Communication Score',
+                                data: commScores,
+                                borderColor: '#10b981',
+                                backgroundColor: 'transparent',
+                                borderDash: [4, 4],
+                                tension: 0.35,
+                                borderWidth: 2,
+                                pointRadius: 4,
+                                pointBackgroundColor: '#10b981'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 1200,
+                            easing: 'easeOutQuart'
+                        },
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    boxWidth: 12,
+                                    padding: 15,
+                                    usePointStyle: true
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: function(items) {
+                                        if (!items.length) return '';
+                                        const idx = items[0].dataIndex;
+                                        const item = progressData[idx];
+                                        return `${item.role} (${item.date})`;
+                                    },
+                                    label: function(context) {
+                                        return ` ${context.dataset.label}: ${context.parsed.y} / 100`;
+                                    },
+                                    afterBody: function(items) {
+                                        if (!items.length) return '';
+                                        const idx = items[0].dataIndex;
+                                        return progressData[idx].is_current ? '📍 Current Session' : '';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                min: 0,
+                                max: 100,
+                                ticks: {
+                                    stepSize: 20,
+                                    callback: (val) => `${val}%`
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.06)',
+                                    drawBorder: false
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.03)'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Error initializing progress chart:', e);
+        }
+    }
+});
+</script>
+{% endif %}
 {% endblock %}
