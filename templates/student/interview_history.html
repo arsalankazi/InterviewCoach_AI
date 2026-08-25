@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}Interview History - InterviewCoach AI{% endblock %}
+
+{% block content %}
+<div class="dashboard-container history-page-container">
+    <!-- Header Section -->
+    <div class="dashboard-header history-header">
+        <div class="history-breadcrumb">
+            <a href="{{ url_for('student.dashboard') }}" class="breadcrumb-link">&larr; Back to Dashboard</a>
+        </div>
+        <div class="history-header-row">
+            <div>
+                <div class="role-badge-tag">Candidate Log</div>
+                <h1 class="dashboard-title">Interview History</h1>
+                <p class="dashboard-subtitle">Review your past mock sessions, competency score breakdowns, and track your interview readiness over time.</p>
+            </div>
+            <div class="history-header-actions">
+                <a href="{{ url_for('student.interview_setup') }}" class="btn btn-primary btn-history-action">
+                    <span>⚡</span> Start New Interview
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Metrics -->
+    <div class="stats-grid history-stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon-wrapper stat-icon-blue">
+                <span>📋</span>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Total Sessions</div>
+                <div class="stat-value">{{ history_metrics.total_sessions }}</div>
+                <div class="stat-desc">All interview attempts</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon-wrapper stat-icon-green">
+                <span>✅</span>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Completed</div>
+                <div class="stat-value">{{ history_metrics.completed_sessions }}</div>
+                <div class="stat-desc">Finished interviews</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon-wrapper stat-icon-amber">
+                <span>⏳</span>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">In Progress</div>
+                <div class="stat-value">{{ history_metrics.in_progress_sessions }}</div>
+                <div class="stat-desc">Active / uncompleted</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon-wrapper stat-icon-purple">
+                <span>⭐</span>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Average Score</div>
+                <div class="stat-value">
+                    {% if history_metrics.avg_score is not none %}
+                        {{ history_metrics.avg_score }}%
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+                <div class="stat-desc">Across evaluated reports</div>
+            </div>
+        </div>
+    </div>
+
+    {% if sessions and sessions|length > 0 %}
+        <!-- Filter & Search Toolbar -->
+        <div class="history-toolbar-card">
+            <div class="history-filter-tabs">
+                <button type="button" class="filter-tab active" data-filter="all">
+                    All <span class="tab-count">({{ history_metrics.total_sessions }})</span>
+                </button>
+                <button type="button" class="filter-tab" data-filter="completed">
+                    Completed <span class="tab-count">({{ history_metrics.completed_sessions }})</span>
+                </button>
+                <button type="button" class="filter-tab" data-filter="in_progress">
+                    In Progress <span class="tab-count">({{ history_metrics.in_progress_sessions }})</span>
+                </button>
+            </div>
+
+            <div class="history-search-wrap">
+                <span class="search-icon">🔍</span>
+                <input 
+                    type="text" 
+                    id="history-search-input" 
+                    class="search-input" 
+                    placeholder="Search by job role or interviewer..."
+                    autocomplete="off"
+                >
+                <button type="button" id="history-search-clear" class="search-clear-btn" style="display: none;">&times;</button>
+            </div>
+        </div>
+
+        <!-- History Sessions Table -->
+        <div class="table-card history-table-card">
+            <div class="table-responsive">
+                <table class="data-table history-table" id="history-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 140px;">Date</th>
+                            <th>Target Role</th>
+                            <th>Interviewer Persona</th>
+                            <th style="width: 130px;">Status</th>
+                            <th style="width: 160px;">Score</th>
+                            <th style="width: 130px; text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body">
+                        {% for session in sessions %}
+                            {% set is_completed = (session.status == 'completed') %}
+                            {% set is_active = (session.status in ['in_progress', 'setup']) %}
+                            {% set target_url = url_for('student.interview_results', session_id=session.session_id) if is_completed else url_for('student.interview_room', session_id=session.session_id) %}
+                            
+                            <tr 
+                                class="history-row clickable-row" 
+                                data-href="{{ target_url }}"
+                                data-status="{{ 'completed' if is_completed else 'in_progress' }}"
+                                data-search="{{ session.job_role|lower }} {{ session.interviewer_name|lower }}"
+                                tabindex="0"
+                                role="link"
+                                aria-label="Session for {{ session.job_role }}"
+                            >
+                                <!-- Date -->
+                                <td class="history-date-cell">
+                                    <div class="date-main">
+                                        {{ session.session_created_at[:10] if session.session_created_at else 'Recent' }}
+                                    </div>
+                                    <div class="date-time">
+                                        {{ session.session_created_at[11:16] if session.session_created_at and session.session_created_at|length >= 16 else '' }}
+                                    </div>
+                                </td>
+
+                                <!-- Job Role -->
+                                <td class="history-role-cell">
+                                    <div class="role-title-wrap">
+                                        <span class="role-dot"></span>
+                                        <span class="role-title-text">{{ session.job_role }}</span>
+                                    </div>
+                                    <span class="session-id-pill">#{{ session.session_id }}</span>
+                                </td>
+
+                                <!-- Interviewer -->
+                                <td class="history-interviewer-cell">
+                                    <div class="interviewer-persona-wrap">
+                                        <div class="persona-avatar-sm {{ 'avatar-female' if session.interviewer_gender == 'female' else 'avatar-male' }}">
+                                            {% if session.interviewer_gender == 'female' %}👩‍💼{% else %}👨‍💼{% endif %}
+                                        </div>
+                                        <div>
+                                            <div class="persona-name-text">{{ session.interviewer_name }}</div>
+                                            <div class="persona-gender-tag">{{ session.interviewer_gender|capitalize }} AI Persona</div>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Status Badge -->
+                                <td class="history-status-cell">
+                                    {% if is_completed %}
+                                        <span class="history-badge badge-completed">
+                                            <span class="badge-dot"></span> Completed
+                                        </span>
+                                    {% elif session.status == 'in_progress' %}
+                                        <span class="history-badge badge-in-progress">
+                                            <span class="badge-dot badge-pulse"></span> In Progress
+                                        </span>
+                                    {% else %}
+                                        <span class="history-badge badge-setup">
+                                            <span class="badge-dot"></span> Setup
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Score -->
+                                <td class="history-score-cell">
+                                    {% if is_completed and session.has_report and session.analysis_available and session.overall_score is not none %}
+                                        {% set score = session.overall_score %}
+                                        {% set score_class = 'score-high' if score >= 75 else ('score-mid' if score >= 50 else 'score-low') %}
+                                        <div class="score-badge-wrap">
+                                            <div class="history-score-pill {{ score_class }}">
+                                                <span class="score-num">{{ score }}</span>
+                                                <span class="score-max">/100</span>
+                                            </div>
+                                            <div class="sub-scores-text">
+                                                T: {{ session.technical_score }} | C: {{ session.communication_score }}
+                                            </div>
+                                        </div>
+                                    {% elif is_completed and session.has_report and not session.analysis_available %}
+                                        <span class="score-text-muted" title="Analysis was unavailable for this session">Unavailable</span>
+                                    {% elif is_completed %}
+                                        <span class="score-text-muted">Pending</span>
+                                    {% else %}
+                                        <span class="score-text-muted">—</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Action Button -->
+                                <td class="history-action-cell" style="text-align: right;">
+                                    {% if is_completed %}
+                                        <a href="{{ target_url }}" class="btn-table-action btn-view-report">
+                                            View Report &rarr;
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ target_url }}" class="btn-table-action btn-resume-room">
+                                            Resume &rarr;
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Client Filter Empty State (Hidden by default) -->
+            <div id="no-matching-interviews" class="history-no-match" style="display: none;">
+                <div class="empty-icon">🔍</div>
+                <h3 class="empty-title">No matching interviews found</h3>
+                <p class="empty-desc">No sessions matched your search or active filter. Try resetting your query.</p>
+                <button type="button" id="reset-history-filters" class="btn btn-outline btn-sm" style="margin-top: 1rem;">
+                    Reset Filters
+                </button>
+            </div>
+        </div>
+
+    {% else %}
+        <!-- Empty State (No sessions at all) -->
+        <div class="history-empty-state-card">
+            <div class="empty-state-glow"></div>
+            <div class="empty-state-icon-wrap">
+                <span class="empty-icon-art">🎯</span>
+            </div>
+            <h2 class="empty-state-title">You haven't completed any interviews yet</h2>
+            <p class="empty-state-desc">
+                Practice role-specific mock interviews with an AI hiring manager. Receive real-time conversational questioning, comprehensive competency scorecards, and actionable improvement recommendations.
+            </p>
+            <div class="empty-state-actions">
+                <a href="{{ url_for('student.interview_setup') }}" class="btn btn-primary btn-lg">
+                    <span>⚡</span> Start Your First Interview
+                </a>
+                <a href="{{ url_for('student.dashboard') }}" class="btn btn-outline btn-lg">
+                    Return to Dashboard
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Make table rows clickable and accessible
+    const rows = document.querySelectorAll('.history-row');
+    rows.forEach(row => {
+        row.addEventListener('click', (e) => {
+            // Avoid double trigger if user clicked directly on the action link
+            if (e.target.closest('a')) return;
+            const targetUrl = row.getAttribute('data-href');
+            if (targetUrl) {
+                window.location.href = targetUrl;
+            }
+        });
+
+        row.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                const targetUrl = row.getAttribute('data-href');
+                if (targetUrl) {
+                    window.location.href = targetUrl;
+                }
+            }
+        });
+    });
+
+    // 2. Interactive Search & Status Filtering
+    const searchInput = document.getElementById('history-search-input');
+    const clearBtn = document.getElementById('history-search-clear');
+    const filterTabs = document.querySelectorAll('.filter-tab');
+    const noMatchNotice = document.getElementById('no-matching-interviews');
+    const resetFiltersBtn = document.getElementById('reset-history-filters');
+
+    let activeFilter = 'all';
+
+    function applyFilters() {
+        if (!rows.length) return;
+
+        const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
+        let visibleCount = 0;
+
+        if (clearBtn) {
+            clearBtn.style.display = query ? 'block' : 'none';
+        }
+
+        rows.forEach(row => {
+            const rowStatus = row.getAttribute('data-status');
+            const rowSearch = row.getAttribute('data-search') || '';
+
+            const matchesStatus = (activeFilter === 'all') || (rowStatus === activeFilter);
+            const matchesQuery = !query || rowSearch.includes(query);
+
+            if (matchesStatus && matchesQuery) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        if (noMatchNotice) {
+            noMatchNotice.style.display = (visibleCount === 0) ? 'block' : 'none';
+        }
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFilters);
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            applyFilters();
+            searchInput.focus();
+        });
+    }
+
+    filterTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            filterTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            activeFilter = tab.getAttribute('data-filter') || 'all';
+            applyFilters();
+        });
+    });
+
+    if (resetFiltersBtn) {
+        resetFiltersBtn.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            activeFilter = 'all';
+            filterTabs.forEach(t => {
+                if (t.getAttribute('data-filter') === 'all') t.classList.add('active');
+                else t.classList.remove('active');
+            });
+            applyFilters();
+        });
+    }
+});
+</script>
+{% endblock %}

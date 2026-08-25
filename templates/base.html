@@ -29,6 +29,7 @@
                     <a href="{{ url_for('auth.admin_logout') }}" class="nav-btn btn-outline">Logout</a>
                 {% elif session.get('role') == 'student' %}
                     <a href="{{ url_for('student.dashboard') }}" class="nav-link">Dashboard</a>
+                    <a href="{{ url_for('student.interview_history') }}" class="nav-link">History</a>
                     <a href="{{ url_for('student.profile') }}" class="nav-link">Profile</a>
                     <span class="user-greeting">
                         <span class="role-pill pill-student">Student</span>

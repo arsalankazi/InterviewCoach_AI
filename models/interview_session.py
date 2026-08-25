@@ -154,6 +154,63 @@ class InterviewSession:
         row = cursor.fetchone()
         return cls._from_row(row) if row else None
 
+    @classmethod
+    def get_sessions_with_reports_by_user(cls, user_id: int) -> list:
+        """
+        Retrieve all interview sessions for a given user ordered most recent first,
+        along with their associated evaluation report (if completed & evaluated).
+        Returns a list of dicts containing session data and report metrics.
+        """
+        if not user_id:
+            return []
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT 
+                s.id AS session_id,
+                s.user_id,
+                s.interviewer_gender,
+                s.interviewer_name,
+                s.job_role,
+                s.status,
+                s.created_at AS session_created_at,
+                r.id AS report_id,
+                r.technical_score,
+                r.communication_score,
+                r.overall_score,
+                r.confidence_level,
+                r.analysis_available,
+                r.created_at AS report_created_at
+            FROM interview_sessions s
+            LEFT JOIN interview_reports r ON s.id = r.session_id
+            WHERE s.user_id = ?
+            ORDER BY s.created_at DESC, s.id DESC;
+            """,
+            (user_id,)
+        )
+        rows = cursor.fetchall()
+        results = []
+        for row in rows:
+            results.append({
+                'session_id': row['session_id'],
+                'user_id': row['user_id'],
+                'interviewer_gender': row['interviewer_gender'],
+                'interviewer_name': row['interviewer_name'],
+                'job_role': row['job_role'],
+                'status': row['status'],
+                'session_created_at': row['session_created_at'],
+                'report_id': row['report_id'],
+                'technical_score': row['technical_score'],
+                'communication_score': row['communication_score'],
+                'overall_score': row['overall_score'],
+                'confidence_level': row['confidence_level'],
+                'analysis_available': bool(row['analysis_available']) if row['analysis_available'] is not None else False,
+                'has_report': row['report_id'] is not None,
+                'report_created_at': row['report_created_at']
+            })
+        return results
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------

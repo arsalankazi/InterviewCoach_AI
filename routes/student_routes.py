@@ -79,9 +79,12 @@ def dashboard():
 
     # Dynamic metrics based on student data
     user_sessions = InterviewSession.get_by_user(user.id)
+    evaluated_reports = [r for r in InterviewReport.get_all_by_user(user.id) if r.get('analysis_available')]
+    avg_score = f"{round(sum(r['overall_score'] for r in evaluated_reports) / len(evaluated_reports))}%" if evaluated_reports else "N/A"
+    
     metrics = {
         "total_interviews": len(user_sessions),
-        "avg_score": "N/A",
+        "avg_score": avg_score,
         "has_resume": user.has_resume(),
         "resume_filename": user.resume_filename,
         "resume_uploaded_at": user.resume_uploaded_at,
@@ -660,12 +663,47 @@ def get_interview_messages(session_id: int):
 
 
 # ---------------------------------------------------------
-# Action Link Placeholders (To be implemented in future modules)
+# Interview History & Performance Log Routes (Module 14)
 # ---------------------------------------------------------
 
 @student_bp.route('/interviews/history', methods=['GET'])
 @login_required
 def interview_history():
-    """Placeholder endpoint for viewing past interview history."""
-    flash("Interview history and scorecard analytics will be available in a future module!", "info")
-    return redirect(url_for('student.dashboard'))
+    """
+    Interview History view (Module 14).
+    Displays a comprehensive log of all mock-interview sessions conducted by the student,
+    including completed sessions with scores and actionable report links, as well as
+    in-progress sessions with direct room resume links.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+
+    if not user:
+        flash("User profile not found. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    # Retrieve all sessions with linked reports, ordered by most recent first
+    sessions_data = InterviewSession.get_sessions_with_reports_by_user(user.id)
+
+    # Compute summary statistics
+    total_sessions = len(sessions_data)
+    completed_sessions = sum(1 for s in sessions_data if s['status'] == 'completed')
+    in_progress_sessions = sum(1 for s in sessions_data if s['status'] in ('in_progress', 'setup'))
+    
+    evaluated = [s for s in sessions_data if s['has_report'] and s['analysis_available'] and s['overall_score'] is not None]
+    avg_score = round(sum(s['overall_score'] for s in evaluated) / len(evaluated)) if evaluated else None
+
+    history_metrics = {
+        "total_sessions": total_sessions,
+        "completed_sessions": completed_sessions,
+        "in_progress_sessions": in_progress_sessions,
+        "avg_score": avg_score,
+        "has_evaluated": len(evaluated) > 0
+    }
+
+    return render_template(
+        'student/interview_history.html',
+        user=user,
+        sessions=sessions_data,
+        history_metrics=history_metrics
+    )
