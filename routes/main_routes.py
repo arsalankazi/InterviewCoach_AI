@@ -35,8 +35,8 @@ def health_check():
     data = {
         "status": "healthy" if is_healthy else "degraded",
         "app_name": "InterviewCoach AI",
-        "version": "0.1.0",
-        "module": "Module 1 - Project Foundation",
+        "version": "1.0.0",
+        "module": "Module 15 - Final Integration & Testing",
         "database": db_status
     }
     

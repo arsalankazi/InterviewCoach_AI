@@ -94,6 +94,30 @@ class InterviewSession:
         db.commit()
 
     # ------------------------------------------------------------------
+    # Aggregate / count operations
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def count_all(cls) -> int:
+        """Return total count of all interview sessions across all users."""
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT COUNT(*) FROM interview_sessions;")
+        row = cursor.fetchone()
+        return row[0] if row else 0
+
+    @classmethod
+    def count_today(cls) -> int:
+        """Return count of interview sessions created today (UTC date)."""
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM interview_sessions WHERE date(created_at) = date('now');"
+        )
+        row = cursor.fetchone()
+        return row[0] if row else 0
+
+    # ------------------------------------------------------------------
     # Read operations
     # ------------------------------------------------------------------
 

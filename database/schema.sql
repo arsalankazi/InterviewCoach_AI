@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     resume_filename TEXT DEFAULT NULL,
     resume_uploaded_at TIMESTAMP DEFAULT NULL,
+    extracted_skills TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
