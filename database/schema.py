@@ -102,4 +102,27 @@ def _run_migrations():
         "CREATE INDEX IF NOT EXISTS idx_reports_session ON interview_reports(session_id);"
     )
 
+    # ── Create question_feedback table if it doesn't exist yet ───────────
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS question_feedback (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id     INTEGER NOT NULL REFERENCES interview_sessions(id) ON DELETE CASCADE,
+            question_text  TEXT    NOT NULL,
+            student_answer TEXT    NOT NULL,
+            ideal_answer   TEXT    NOT NULL,
+            feedback_text  TEXT    NOT NULL,
+            topic          TEXT    NOT NULL,
+            score          INTEGER NOT NULL DEFAULT 0,
+            created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_qfeedback_session ON question_feedback(session_id);"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_qfeedback_topic ON question_feedback(topic);"
+    )
+
     db.commit()

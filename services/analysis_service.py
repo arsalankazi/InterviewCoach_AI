@@ -81,7 +81,17 @@ Based on the transcript above, produce a JSON object with EXACTLY these keys and
   "confidence_level": "<Low | Moderate | High>",
   "strengths": ["<string>", "<string>"],
   "weaknesses": ["<string>", "<string>"],
-  "suggestions": ["<string>", "<string>"]
+  "suggestions": ["<string>", "<string>"],
+  "question_breakdown": [
+    {{
+      "question": "<the interviewer's question text>",
+      "student_answer": "<the candidate's answer>",
+      "ideal_answer": "<ideal, comprehensive model answer expected by a hiring manager>",
+      "feedback": "<specific constructive critique highlighting what was good and what was missing>",
+      "topic": "<topic category e.g. SQL Queries, Python Fundamentals, Architecture, Problem Solving>",
+      "score": <integer 0-100 evaluating the candidate's answer>
+    }}
+  ]
 }}
 
 Scoring guidelines:
@@ -92,11 +102,12 @@ Scoring guidelines:
 - strengths: 2 to 4 brief, specific positive observations (each under 15 words).
 - weaknesses: 2 to 4 brief, specific areas needing improvement (each under 15 words).
 - suggestions: 2 to 4 actionable, concrete improvement tips (each under 20 words).
+- question_breakdown: Extract EVERY question asked by the interviewer in the transcript where the candidate responded. Provide the question, the candidate's response, an ideal benchmark answer, concise actionable critique feedback, the technical topic category, and a score (0-100).
 
 CRITICAL RULES:
 - Return ONLY the raw JSON object. No markdown, no code fences, no explanation text.
-- All list fields must contain at least 2 items and no more than 4 items.
-- Do not add any extra keys to the JSON object.
+- All list fields (strengths, weaknesses, suggestions) must contain at least 2 items and no more than 4 items.
+- Ensure the JSON is completely valid and properly closed.
 """
     return prompt.strip()
 
@@ -150,7 +161,30 @@ def _validate_and_clean(raw: dict) -> dict | None:
     weaknesses  = _safe_list(raw.get('weaknesses', []))
     suggestions = _safe_list(raw.get('suggestions', []))
 
-    # Ensure lists have at least 1 item (soft requirement — don't fail for this)
+    # Validate and sanitize question_breakdown list
+    question_breakdown = []
+    raw_breakdown = raw.get('question_breakdown', [])
+    if isinstance(raw_breakdown, list):
+        for item in raw_breakdown:
+            if not isinstance(item, dict):
+                continue
+            q_text = str(item.get('question') or item.get('question_text') or '').strip()
+            ans_text = str(item.get('student_answer') or '').strip()
+            ideal_text = str(item.get('ideal_answer') or '').strip()
+            fb_text = str(item.get('feedback') or item.get('feedback_text') or '').strip()
+            topic_str = str(item.get('topic') or 'General').strip()
+            q_score = _clamp_score(item.get('score', 0))
+
+            if q_text or ans_text:
+                question_breakdown.append({
+                    'question': q_text,
+                    'student_answer': ans_text,
+                    'ideal_answer': ideal_text,
+                    'feedback': fb_text,
+                    'topic': topic_str,
+                    'score': q_score
+                })
+
     return {
         'technical_score':     technical_score,
         'communication_score': communication_score,
@@ -159,6 +193,7 @@ def _validate_and_clean(raw: dict) -> dict | None:
         'strengths':           strengths,
         'weaknesses':          weaknesses,
         'suggestions':         suggestions,
+        'question_breakdown':  question_breakdown
     }
 
 
@@ -256,7 +291,7 @@ def generate_interview_analysis(session, messages: list) -> dict | None:
     generation_config = {
         "temperature": 0.3,   # Lower temperature for more deterministic JSON output
         "top_p": 0.90,
-        "max_output_tokens": 2048,
+        "max_output_tokens": 4096,
     }
 
     last_error = ""

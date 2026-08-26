@@ -4,14 +4,16 @@
 
 {% block content %}
 <div class="dashboard-container history-page-container">
-    <!-- Header Section -->
+    <!-- Top Navigation & Header Section -->
+    <div class="history-top-nav">
+        <a href="{{ url_for('student.dashboard') }}" class="btn btn-outline btn-sm history-back-btn">
+            <span>&larr;</span> Back to Dashboard
+        </a>
+    </div>
+
     <div class="dashboard-header history-header">
-        <div class="history-breadcrumb">
-            <a href="{{ url_for('student.dashboard') }}" class="breadcrumb-link">&larr; Back to Dashboard</a>
-        </div>
         <div class="history-header-row">
-            <div>
-                <div class="role-badge-tag">Candidate Log</div>
+            <div class="history-title-block">
                 <h1 class="dashboard-title">Interview History</h1>
                 <p class="dashboard-subtitle">Review your past mock sessions, competency score breakdowns, and track your interview readiness over time.</p>
             </div>

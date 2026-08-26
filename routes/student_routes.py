@@ -17,6 +17,7 @@ from models.user import User
 from models.interview_session import InterviewSession
 from models.interview_message import InterviewMessage
 from models.interview_report import InterviewReport
+from models.question_feedback import QuestionFeedback
 from services.resume_parser import extract_skills_from_pdf, SKILL_LIBRARY
 from services.conversation_engine import get_next_question
 from services.analysis_service import generate_interview_analysis
@@ -82,6 +83,9 @@ def dashboard():
     evaluated_reports = [r for r in InterviewReport.get_all_by_user(user.id) if r.get('analysis_available')]
     avg_score = f"{round(sum(r['overall_score'] for r in evaluated_reports) / len(evaluated_reports))}%" if evaluated_reports else "N/A"
     
+    # Granular weak topics tracked across past sessions
+    weak_topics = QuestionFeedback.get_weak_topics_by_user(user.id)
+
     metrics = {
         "total_interviews": len(user_sessions),
         "avg_score": avg_score,
@@ -91,7 +95,7 @@ def dashboard():
         "resume_status": "Uploaded" if user.has_resume() else "Not Uploaded"
     }
 
-    return render_template('student/dashboard.html', user=user, metrics=metrics)
+    return render_template('student/dashboard.html', user=user, metrics=metrics, weak_topics=weak_topics)
 
 
 @student_bp.route('/profile', methods=['GET'])
@@ -499,6 +503,15 @@ def end_interview(session_id: int):
             suggestions=analysis['suggestions'],
             analysis_available=True
         )
+
+        # Persist granular question-by-question feedback if extracted
+        if analysis.get('question_breakdown'):
+            try:
+                QuestionFeedback.create_batch(session_id, analysis['question_breakdown'])
+            except Exception as q_err:
+                current_app.logger.warning(
+                    f"[EndInterview] Failed saving question breakdown for session #{session_id}: {q_err}"
+                )
     else:
         InterviewReport.create_unavailable(session_id)
 
@@ -512,11 +525,11 @@ def end_interview(session_id: int):
 @login_required
 def interview_results(session_id: int):
     """
-    Interview Results page (Modules 12 & 13).
+    Interview Results page (Modules 12, 13 & Question-Level Feedback).
     Displays the AI-generated performance analysis for a completed session,
     including score rings, confidence assessment, strengths, weaknesses,
-    actionable improvement recommendations, and rich Chart.js visual analytics
-    (competency breakdown and historical progress trend over time).
+    actionable improvement recommendations, rich Chart.js visual analytics,
+    and granular question-by-question evaluation breakdown.
     """
     user_id = session.get('student_id') or session.get('user_id')
     user = User.get_by_id(user_id)
@@ -540,6 +553,9 @@ def interview_results(session_id: int):
 
     # Load the report — may be None for legacy sessions completed before Module 12
     report = InterviewReport.get_by_session(session_id)
+
+    # Load granular question-by-question feedback for this session
+    question_feedback = QuestionFeedback.get_by_session(session_id)
 
     # Prepare chart payloads for Module 13
     current_chart_data = None
@@ -575,10 +591,30 @@ def interview_results(session_id: int):
         user=user,
         interview_session=interview_session,
         report=report,
+        question_feedback=question_feedback,
         current_chart_data=current_chart_data,
         progress_chart_data=progress_chart_data,
         has_progress_history=has_progress_history
     )
+
+
+@student_bp.route('/weak-topics', methods=['GET'])
+@login_required
+def get_weak_topics():
+    """
+    API endpoint returning aggregated weak topics and historical mistakes for the candidate.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+    if not user:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    weak_topics = QuestionFeedback.get_weak_topics_by_user(user.id)
+    return jsonify({
+        "success": True,
+        "count": len(weak_topics),
+        "weak_topics": weak_topics
+    }), 200
 
 
 

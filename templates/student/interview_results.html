@@ -251,6 +251,103 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- =========================================================
+         Question-Level Feedback & Breakdown Accordion Section
+         ========================================================= -->
+    {% if question_feedback and question_feedback|length > 0 %}
+    <div class="results-card q-breakdown-section-card">
+        <div class="q-breakdown-header">
+            <div class="q-breakdown-title-wrap">
+                <div class="feedback-icon feedback-icon-purple">📝</div>
+                <div>
+                    <div class="q-breakdown-title-row">
+                        <h3 class="feedback-title">Question-by-Question Breakdown</h3>
+                        <span class="q-count-badge">{{ question_feedback|length }} Question{% if question_feedback|length != 1 %}s{% endif %} Evaluated</span>
+                    </div>
+                    <p class="feedback-subtitle">Detailed evaluation of each response, benchmark model answers, and targeted critique</p>
+                </div>
+            </div>
+            <div class="q-breakdown-actions">
+                <button type="button" id="toggle-all-questions-btn" class="btn btn-outline btn-sm">
+                    Expand All
+                </button>
+            </div>
+        </div>
+
+        <div class="q-accordion-list" id="questions-accordion">
+            {% for q in question_feedback %}
+                {% set score = q.score %}
+                {% set score_class = 'score-badge-high' if score > 70 else ('score-badge-mid' if score >= 50 else 'score-badge-low') %}
+                <div class="q-accordion-item" data-item-id="{{ q.id }}">
+                    <button type="button" class="q-accordion-header" aria-expanded="false" aria-controls="q-body-{{ q.id }}">
+                        <div class="q-header-left">
+                            <span class="q-num-pill">Q{{ loop.index }}</span>
+                            <span class="q-topic-pill">{{ q.topic }}</span>
+                            <span class="q-header-text">{{ q.question_text }}</span>
+                        </div>
+                        <div class="q-header-right">
+                            <span class="q-score-badge {{ score_class }}">
+                                <span class="q-score-val">{{ score }}</span>
+                                <span class="q-score-denom">/100</span>
+                            </span>
+                            <span class="q-chevron-icon">▾</span>
+                        </div>
+                    </button>
+
+                    <div class="q-accordion-body" id="q-body-{{ q.id }}" style="display: none;">
+                        <div class="q-body-content">
+                            <!-- Full Question Block -->
+                            <div class="q-full-question-wrap">
+                                <span class="q-block-label label-question">📌 Question Prompt</span>
+                                <div class="q-prompt-text">{{ q.question_text }}</div>
+                            </div>
+
+                            <div class="q-response-grid">
+                                <!-- Student Answer -->
+                                <div class="q-block q-block-student">
+                                    <div class="q-block-header">
+                                        <span class="q-block-icon">👤</span>
+                                        <span class="q-block-label">Your Response</span>
+                                    </div>
+                                    <div class="q-block-text">
+                                        {% if q.student_answer %}
+                                            {{ q.student_answer }}
+                                        {% else %}
+                                            <em class="text-muted">(No answer provided)</em>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Ideal Benchmark Answer -->
+                                <div class="q-block q-block-ideal">
+                                    <div class="q-block-header">
+                                        <span class="q-block-icon">⭐</span>
+                                        <span class="q-block-label">Ideal Benchmark Answer</span>
+                                    </div>
+                                    <div class="q-block-text">
+                                        {{ q.ideal_answer }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Coach Critique & Feedback -->
+                            <div class="q-block q-block-critique">
+                                <div class="q-block-header">
+                                    <span class="q-block-icon">💡</span>
+                                    <span class="q-block-label">Coach Critique &amp; Improvement Tips</span>
+                                </div>
+                                <div class="q-block-text">
+                                    {{ q.feedback_text }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
     {% endif %}
 
     <!-- Bottom Actions -->
@@ -499,6 +596,49 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             console.error('Error initializing progress chart:', e);
         }
+    }
+
+    // ─────────────────────────────────────────────
+    // 3. Question-by-Question Accordion Interaction
+    // ─────────────────────────────────────────────
+    const accordionHeaders = document.querySelectorAll('.q-accordion-header');
+    const toggleAllBtn = document.getElementById('toggle-all-questions-btn');
+    let allExpanded = false;
+
+    accordionHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            const body = header.nextElementSibling;
+            const isExpanded = header.getAttribute('aria-expanded') === 'true';
+
+            if (isExpanded) {
+                body.style.display = 'none';
+                header.setAttribute('aria-expanded', 'false');
+                header.parentElement.classList.remove('is-open');
+            } else {
+                body.style.display = 'block';
+                header.setAttribute('aria-expanded', 'true');
+                header.parentElement.classList.add('is-open');
+            }
+        });
+    });
+
+    if (toggleAllBtn) {
+        toggleAllBtn.addEventListener('click', () => {
+            allExpanded = !allExpanded;
+            accordionHeaders.forEach(header => {
+                const body = header.nextElementSibling;
+                if (allExpanded) {
+                    body.style.display = 'block';
+                    header.setAttribute('aria-expanded', 'true');
+                    header.parentElement.classList.add('is-open');
+                } else {
+                    body.style.display = 'none';
+                    header.setAttribute('aria-expanded', 'false');
+                    header.parentElement.classList.remove('is-open');
+                }
+            });
+            toggleAllBtn.textContent = allExpanded ? 'Collapse All' : 'Expand All';
+        });
     }
 });
 </script>
