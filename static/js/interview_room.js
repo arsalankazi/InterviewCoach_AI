@@ -240,20 +240,131 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // =============================================================
+    // Photo-Based Avatar & Real-time Overlay Lip-Sync Engine
+    // =============================================================
+    const AvatarLipSyncEngine = (() => {
+        const mouthElem = document.getElementById('avatar-mouth');
+        const leftEye   = document.getElementById('overlay-eye-left') || document.getElementById('avatar-left-eye');
+        const rightEye  = document.getElementById('overlay-eye-right') || document.getElementById('avatar-right-eye');
+
+        // Dynamic morphing mouth path coordinates (calibrated for overlay viewBox 0 0 100 60)
+        const VISEMES = {
+            closed: 'M 15 30 Q 50 34 85 30',
+            half:   'M 18 28 Q 50 42 82 28 Q 50 22 18 28 Z',
+            open:   'M 15 26 Q 50 50 85 26 Q 50 16 15 26 Z',
+            round:  'M 25 25 Q 50 48 75 25 Q 50 15 25 25 Z'
+        };
+
+        const visemeCadence = ['half', 'open', 'half', 'closed', 'open', 'round', 'half', 'closed'];
+
+        let isSpeaking         = false;
+        let animFrameId        = null;
+        let lastVisemeTime     = 0;
+        let cadenceIndex       = 0;
+        let blinkTimeoutId     = null;
+
+        // ── Autonomous Natural Eye-Blinking (Randomized 2-6s) ───
+        function triggerBlink() {
+            if (leftEye && rightEye) {
+                leftEye.classList.add('is-blinking');
+                rightEye.classList.add('is-blinking');
+
+                setTimeout(() => {
+                    if (leftEye)  leftEye.classList.remove('is-blinking');
+                    if (rightEye) rightEye.classList.remove('is-blinking');
+                }, 140);
+            }
+            scheduleBlink();
+        }
+
+        function scheduleBlink() {
+            clearTimeout(blinkTimeoutId);
+            const delay = 2000 + Math.random() * 4000;
+            blinkTimeoutId = setTimeout(triggerBlink, delay);
+        }
+
+        // Initialize continuous blinking cycle
+        scheduleBlink();
+
+        // ── Set Viseme Mouth Shape ──────────────────────────────
+        function setViseme(visemeKey) {
+            if (!mouthElem) return;
+            const pathData = VISEMES[visemeKey] || VISEMES.closed;
+            mouthElem.setAttribute('d', pathData);
+        }
+
+        // ── High-Precision RAF Viseme Oscillator ────────────────
+        function visemeStep(timestamp) {
+            if (!isSpeaking) return;
+
+            if (!lastVisemeTime || timestamp - lastVisemeTime > 125) {
+                lastVisemeTime = timestamp;
+                cadenceIndex = (cadenceIndex + 1) % visemeCadence.length;
+                setViseme(visemeCadence[cadenceIndex]);
+            }
+
+            animFrameId = requestAnimationFrame(visemeStep);
+        }
+
+        // ── Start / Stop Speaking ───────────────────────────────
+        function start(utterance, text) {
+            isSpeaking     = true;
+            cadenceIndex   = 0;
+            lastVisemeTime = 0;
+
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            animFrameId = requestAnimationFrame(visemeStep);
+
+            // Hook SpeechSynthesis onboundary event for word-level sync pulses
+            if (utterance) {
+                utterance.onboundary = (event) => {
+                    if (!isSpeaking) return;
+                    // Analyze starting character of current spoken word for realistic vowel shape
+                    const idx = event.charIndex || 0;
+                    const char = (text && text[idx]) ? text[idx].toLowerCase() : '';
+                    if (['o', 'u', 'w'].includes(char)) {
+                        setViseme('round');
+                    } else if (['a', 'e', 'i'].includes(char)) {
+                        setViseme('open');
+                    } else {
+                        setViseme('half');
+                    }
+                    lastVisemeTime = performance.now();
+                };
+            }
+        }
+
+        function stop() {
+            isSpeaking = false;
+            if (animFrameId) {
+                cancelAnimationFrame(animFrameId);
+                animFrameId = null;
+            }
+            setViseme('closed');
+        }
+
+        return { start, stop, setViseme };
+    })();
+
+
+    // =============================================================
     // MODULE 10 — Part C: AvatarAnimator
     // Three states: idle | is-thinking | is-speaking
     // =============================================================
     const AvatarAnimator = (() => {
         const ring = document.getElementById('avatar-speaking-ring');
 
-        function startSpeaking() {
-            if (!ring) return;
-            ring.classList.remove('is-thinking');
-            ring.classList.add('is-speaking');
+        function startSpeaking(utterance = null, text = '') {
+            if (ring) {
+                ring.classList.remove('is-thinking');
+                ring.classList.add('is-speaking');
+            }
+            AvatarLipSyncEngine.start(utterance, text);
         }
 
         function stopSpeaking() {
             if (ring) ring.classList.remove('is-speaking');
+            AvatarLipSyncEngine.stop();
         }
 
         function startThinking() {
@@ -298,9 +409,11 @@ document.addEventListener('DOMContentLoaded', () => {
             utterance.volume = 1.0;
             const voice = pickVoice();
             if (voice) utterance.voice = voice;
-            utterance.onstart = () => AvatarAnimator.startSpeaking();
+
+            utterance.onstart = () => AvatarAnimator.startSpeaking(utterance, text);
             utterance.onend   = () => AvatarAnimator.stopSpeaking();
             utterance.onerror = () => AvatarAnimator.stopSpeaking();
+
             synth.speak(utterance);
         }
 
@@ -327,7 +440,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function cancel() {
-            if (synth) { synth.cancel(); AvatarAnimator.stopSpeaking(); }
+            if (synth) { synth.cancel(); }
+            AvatarAnimator.stopSpeaking();
         }
 
         if (btnTts) btnTts.addEventListener('click', () => { isMuted ? unmute() : mute(); });
@@ -335,6 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return { speak, mute, unmute, cancel };
     })();
+
 
 
     // =============================================================

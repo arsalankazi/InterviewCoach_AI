@@ -57,9 +57,30 @@
                     <!-- Avatar wrapped in speaking-ring animator -->
                     <div class="interviewer-avatar-wrap">
                         <div class="avatar-speaking-ring" id="avatar-speaking-ring">
-                            <div class="interviewer-avatar {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}"
+                            <div class="interviewer-avatar avatar-photo-frame {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}"
                                  id="sidebar-avatar">
-                                {% if interview_session.interviewer_gender == 'female' %}👩‍💼{% else %}👨‍💼{% endif %}
+                                <!-- Real Photo Base Layer -->
+                                <img id="avatar-portrait-img"
+                                     class="avatar-portrait-img"
+                                     src="{{ url_for('static', filename='js/avatar/img/interviewer_' ~ interview_session.interviewer_gender ~ '.jpg') }}"
+                                     alt="{{ interview_session.interviewer_name }} Portrait"
+                                     loading="eager" />
+
+                                <!-- Transparent Interactive Facial Overlays Layer -->
+                                <div class="avatar-overlays-layer" aria-hidden="true">
+                                    <!-- Eyelid Overlays (Blink Target) -->
+                                    <div id="overlay-eye-left" class="avatar-overlay-eye overlay-eye-left"></div>
+                                    <div id="overlay-eye-right" class="avatar-overlay-eye overlay-eye-right"></div>
+
+                                    <!-- Eyebrow Accent Overlays -->
+                                    <div id="overlay-brow-left" class="avatar-overlay-brow overlay-brow-left"></div>
+                                    <div id="overlay-brow-right" class="avatar-overlay-brow overlay-brow-right"></div>
+
+                                    <!-- Morphing Mouth Viseme Overlay -->
+                                    <svg id="overlay-mouth-svg" class="avatar-overlay-mouth" viewBox="0 0 100 60">
+                                        <path id="avatar-mouth" class="mouth-viseme-path" d="M 15 30 Q 50 34 85 30" />
+                                    </svg>
+                                </div>
                             </div>
                         </div>
                         <!-- 5-bar sound-wave equalizer — animated when AI is speaking -->

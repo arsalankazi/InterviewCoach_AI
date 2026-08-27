@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InterviewCoach AI — 2D Corporate Avatar Preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-card: rgba(17, 24, 39, 0.85);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --accent-primary: #6366f1;
+            --success: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .preview-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .preview-badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            margin-bottom: 0.75rem;
+        }
+
+        .preview-title {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #ffffff 40%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .preview-subtitle {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+        }
+
+        .avatars-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            max-width: 760px;
+            width: 100%;
+        }
+
+        .avatar-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.25rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .avatar-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+
+        .avatar-portrait-wrap {
+            width: 200px;
+            height: 240px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            background: #0f172a;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+            position: relative;
+        }
+
+        .avatar-portrait-wrap img,
+        .avatar-portrait-wrap svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .avatar-meta {
+            text-align: center;
+            width: 100%;
+        }
+
+        .avatar-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .avatar-role {
+            font-size: 0.82rem;
+            color: #a5b4fc;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .persona-pill {
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.25);
+        }
+
+        /* Subtle Breathing Respiration Keyframe */
+        .avatar-character-body {
+            transform-origin: 100px 160px;
+            animation: avatarIdleBreath 3.8s ease-in-out infinite;
+        }
+
+        @keyframes avatarIdleBreath {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-1.5px) scale(1.008); }
+        }
+
+        .avatar-eye {
+            transform-box: fill-box;
+            transform-origin: center;
+            transition: transform 0.08s ease-in-out;
+        }
+
+        .avatar-eye.is-blinking {
+            transform: scaleY(0.08) !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="preview-header">
+        <div class="preview-badge">AI Interviewer Avatar Preview</div>
+        <h1 class="preview-title">Professional 2D Corporate Portraits</h1>
+        <p class="preview-subtitle">Realistic flat-editorial character illustration with layered lighting, tailored executive attire, and subtle dimensional depth.</p>
+    </div>
+
+    <div class="avatars-grid">
+        <!-- Male Avatar Card -->
+        <div class="avatar-card">
+            <div class="avatar-portrait-wrap" id="male-mount">
+                <object type="image/svg+xml" data="/static/avatars/male_avatar.svg" width="100%" height="100%"></object>
+            </div>
+            <div class="avatar-meta">
+                <h3 class="avatar-name">David / Alex</h3>
+                <div class="avatar-role">Male Interviewer Persona</div>
+                <span class="persona-pill">Analytical &amp; Structured</span>
+            </div>
+        </div>
+
+        <!-- Female Avatar Card -->
+        <div class="avatar-card">
+            <div class="avatar-portrait-wrap" id="female-mount">
+                <object type="image/svg+xml" data="/static/avatars/female_avatar.svg" width="100%" height="100%"></object>
+            </div>
+            <div class="avatar-meta">
+                <h3 class="avatar-name">Sarah / Maya</h3>
+                <div class="avatar-role">Female Interviewer Persona</div>
+                <span class="persona-pill">Perceptive &amp; Insightful</span>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

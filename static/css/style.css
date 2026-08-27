@@ -2013,17 +2013,185 @@ a.skill-badge-more:hover {
   gap: 1rem;
 }
 
+/* ---------------------------------------------------------
+   Photo-Based AI Interviewer Avatar & Calibrated Overlays
+--------------------------------------------------------- */
+/* Male Portrait Calibrated Coordinates */
+.avatar-male {
+  --eye-left-x: 56.2%;
+  --eye-left-y: 30.6%;
+  --eye-right-x: 42.1%;
+  --eye-right-y: 30.6%;
+  --brow-left-x: 56.2%;
+  --brow-left-y: 27.2%;
+  --brow-right-x: 41.8%;
+  --brow-right-y: 27.6%;
+  --mouth-x: 49.0%;
+  --mouth-y: 45.1%;
+  --mouth-left-x: 55.2%;
+  --mouth-left-y: 44.8%;
+  --mouth-right-x: 43.4%;
+  --mouth-right-y: 45.1%;
+  --eyelid-tone: #d89f7f;
+  --lip-color: #8c322b;
+}
+
+/* Female Portrait Calibrated Coordinates */
+.avatar-female {
+  --eye-left-x: 57.4%;
+  --eye-left-y: 32.4%;
+  --eye-right-x: 42.1%;
+  --eye-right-y: 32.9%;
+  --brow-left-x: 57.7%;
+  --brow-left-y: 28.2%;
+  --brow-right-x: 42.4%;
+  --brow-right-y: 28.8%;
+  --mouth-x: 49.9%;
+  --mouth-y: 47.2%;
+  --mouth-left-x: 54.9%;
+  --mouth-left-y: 46.9%;
+  --mouth-right-x: 44.0%;
+  --mouth-right-y: 46.6%;
+  --eyelid-tone: #e6ab90;
+  --lip-color: #b91c1c;
+}
+
 .interviewer-avatar {
-  width: 54px;
-  height: 54px;
-  border-radius: var(--radius-md);
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.8rem;
   flex-shrink: 0;
-  border: 1px solid var(--border-color);
+  border: 2.5px solid rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+  background: var(--bg-primary);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  position: relative;
 }
+
+/* Photo Base Layer */
+.avatar-portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  animation: avatarPhotoBreathe 4s ease-in-out infinite;
+}
+
+@keyframes avatarPhotoBreathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.018);
+  }
+}
+
+/* Speaking micro-motion */
+.avatar-speaking-ring.is-speaking .avatar-portrait-img {
+  animation: avatarSpeakingPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes avatarSpeakingPulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.012) rotate(0.4deg);
+  }
+  75% {
+    transform: scale(1.008) rotate(-0.4deg);
+  }
+}
+
+/* Transparent Overlay Container */
+.avatar-overlays-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Eyelid Overlays for Blinking */
+.avatar-overlay-eye {
+  position: absolute;
+  width: 13%;
+  height: 6.5%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+  border-radius: 50% 50% 40% 40%;
+  background: var(--eyelid-tone);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.06s ease, transform 0.06s ease;
+}
+
+.overlay-eye-left {
+  left: var(--eye-left-x);
+  top: var(--eye-left-y);
+}
+
+.overlay-eye-right {
+  left: var(--eye-right-x);
+  top: var(--eye-right-y);
+}
+
+.avatar-overlay-eye.is-blinking {
+  opacity: 0.97;
+  transform: translate(-50%, -50%) scaleY(1);
+}
+
+/* Eyebrow Accent Overlays */
+.avatar-overlay-brow {
+  position: absolute;
+  width: 15%;
+  height: 4%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.overlay-brow-left {
+  left: var(--brow-left-x);
+  top: var(--brow-left-y);
+}
+
+.overlay-brow-right {
+  left: var(--brow-right-x);
+  top: var(--brow-right-y);
+}
+
+.avatar-speaking-ring.is-speaking .avatar-overlay-brow {
+  transform: translate(-50%, -50%) translateY(-1.5px);
+}
+
+/* Morphing Mouth Viseme Overlay */
+.avatar-overlay-mouth {
+  position: absolute;
+  left: var(--mouth-x);
+  top: var(--mouth-y);
+  transform: translate(-50%, -50%);
+  width: 26%;
+  height: 16%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.mouth-viseme-path {
+  stroke: var(--lip-color);
+  stroke-width: 3.6;
+  stroke-linecap: round;
+  fill: var(--lip-color);
+  opacity: 0.95;
+  transition: d 0.07s cubic-bezier(0.2, 0, 0, 1);
+}
+
+
 
 .interviewer-title-group {
   display: flex;
