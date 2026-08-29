@@ -44,6 +44,8 @@ def _run_migrations():
         cursor.execute("ALTER TABLE users ADD COLUMN resume_uploaded_at TIMESTAMP DEFAULT NULL;")
     if 'extracted_skills' not in columns:
         cursor.execute("ALTER TABLE users ADD COLUMN extracted_skills TEXT DEFAULT NULL;")
+    if 'onboarding_completed' not in columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN onboarding_completed INTEGER NOT NULL DEFAULT 0;")
 
     # ── Create interview_sessions table if it doesn't exist yet ───────────
     cursor.execute(
@@ -56,12 +58,29 @@ def _run_migrations():
             job_role           TEXT    NOT NULL,
             status             TEXT    NOT NULL DEFAULT 'setup'
                                        CHECK(status IN ('setup', 'in_progress', 'completed')),
+            session_type       TEXT    NOT NULL DEFAULT 'full_interview'
+                                       CHECK(session_type IN ('full_interview', 'practice')),
             created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_sessions_user ON interview_sessions(user_id);"
+    )
+
+    # ── Migrate session_type column onto existing interview_sessions table ──
+    cursor.execute("PRAGMA table_info(interview_sessions);")
+    session_cols = [
+        row['name'] if isinstance(row, dict) or hasattr(row, 'keys') else row[1]
+        for row in cursor.fetchall()
+    ]
+    if 'session_type' not in session_cols:
+        cursor.execute(
+            "ALTER TABLE interview_sessions "
+            "ADD COLUMN session_type TEXT NOT NULL DEFAULT 'full_interview';"
+        )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sessions_type ON interview_sessions(session_type);"
     )
 
     # ── Create interview_messages table if it doesn't exist yet ───────────

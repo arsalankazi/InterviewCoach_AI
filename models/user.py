@@ -19,7 +19,8 @@ class User:
         created_at=None,
         resume_filename=None,
         resume_uploaded_at=None,
-        extracted_skills=None
+        extracted_skills=None,
+        onboarding_completed=0
     ):
         self.id = id
         self.name = name
@@ -30,6 +31,7 @@ class User:
         self.resume_uploaded_at = resume_uploaded_at
         # Always stored as a Python list; never None externally
         self.extracted_skills = extracted_skills if isinstance(extracted_skills, list) else []
+        self.onboarding_completed = int(onboarding_completed) if onboarding_completed is not None else 0
 
     def set_password(self, password):
         """Generate and store password hash using Werkzeug."""
@@ -222,8 +224,37 @@ class User:
             created_at=row['created_at'],
             resume_filename=row['resume_filename'] if 'resume_filename' in keys else None,
             resume_uploaded_at=row['resume_uploaded_at'] if 'resume_uploaded_at' in keys else None,
-            extracted_skills=skills
+            extracted_skills=skills,
+            onboarding_completed=row['onboarding_completed'] if 'onboarding_completed' in keys else 0
         )
+
+    @classmethod
+    def mark_onboarding_complete(cls, user_id):
+        """Mark student onboarding tour as completed (1)."""
+        if not user_id:
+            return False
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            "UPDATE users SET onboarding_completed = 1 WHERE id = ?;",
+            (user_id,)
+        )
+        db.commit()
+        return True
+
+    @classmethod
+    def reset_onboarding(cls, user_id):
+        """Reset student onboarding tour status to incomplete (0)."""
+        if not user_id:
+            return False
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            "UPDATE users SET onboarding_completed = 0 WHERE id = ?;",
+            (user_id,)
+        )
+        db.commit()
+        return True
 
     def to_dict(self):
         """Serialize user object without sensitive password hash."""
@@ -235,5 +266,6 @@ class User:
             "resume_filename": self.resume_filename,
             "resume_uploaded_at": str(self.resume_uploaded_at) if self.resume_uploaded_at else None,
             "extracted_skills": self.get_skills(),
+            "onboarding_completed": bool(self.onboarding_completed),
             "created_at": str(self.created_at) if self.created_at else None
         }

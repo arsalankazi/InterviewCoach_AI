@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
     resume_filename TEXT DEFAULT NULL,
     resume_uploaded_at TIMESTAMP DEFAULT NULL,
     extracted_skills TEXT DEFAULT NULL,
+    onboarding_completed INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS interview_sessions (
     job_role           TEXT    NOT NULL,
     status             TEXT    NOT NULL DEFAULT 'setup'
                                CHECK(status IN ('setup', 'in_progress', 'completed')),
+    session_type       TEXT    DEFAULT 'full_interview' NOT NULL,
     created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -74,6 +76,7 @@ CREATE TABLE IF NOT EXISTS question_feedback (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_admins_email ON admins(email);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON interview_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_type ON interview_sessions(session_type);
 CREATE INDEX IF NOT EXISTS idx_messages_session ON interview_messages(session_id);
 CREATE INDEX IF NOT EXISTS idx_reports_session ON interview_reports(session_id);
 CREATE INDEX IF NOT EXISTS idx_qfeedback_session ON question_feedback(session_id);

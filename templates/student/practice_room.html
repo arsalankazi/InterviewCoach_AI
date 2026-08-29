@@ -1,0 +1,1032 @@
+{% extends "base.html" %}
+
+{% block title %}Practice: {{ topic }} — InterviewCoach AI{% endblock %}
+
+{% block content %}
+<div class="practice-room-container"
+     data-session-id="{{ practice_session.id }}"
+     data-session-status="{{ practice_session.status }}"
+     data-student-name="{{ user.name }}"
+     data-topic="{{ topic }}">
+
+    <!-- AI Analysis Loading Overlay (shown only when ending session) -->
+    <div id="analysis-loading-overlay" class="analysis-loading-overlay hidden" style="display: none;" aria-live="polite" role="status">
+        <div class="analysis-loading-card">
+            <div class="analysis-spinner-wrap">
+                <div class="analysis-spinner-ring"></div>
+                <div class="analysis-spinner-icon">🧠</div>
+            </div>
+            <h2 class="analysis-loading-title">Analysing Your Practice Session</h2>
+            <p class="analysis-loading-subtitle">
+                The AI coach is evaluating your answers on <strong>{{ topic }}</strong>, compiling scores and actionable topic feedback…
+            </p>
+            <div class="analysis-loading-progress">
+                <div class="analysis-loading-bar"></div>
+            </div>
+            <p class="analysis-loading-hint">Generating your performance report, please wait a moment.</p>
+        </div>
+    </div>
+
+    <!-- ====================================================
+         COMPACT TOP HEADER BAR (Focused & Uncluttered)
+         ==================================================== -->
+    <header class="practice-compact-header">
+        <div class="practice-header-left">
+            <span class="practice-mode-tag" style="background: rgba(245,158,11,0.2); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.04em;">Practice Mode</span>
+            <span class="practice-topic-badge">⚡ {{ topic }}</span>
+            <div class="practice-counter-pill" id="practice-counter-pill">
+                <span class="counter-label">Question</span>
+                <span class="counter-val" id="current-q-num">1</span>
+                <span class="counter-sep">/</span>
+                <span class="counter-total">6</span>
+            </div>
+        </div>
+
+        <div class="practice-header-right">
+            <!-- Subtle End Practice Form -->
+            <form id="end-practice-form"
+                  method="POST"
+                  action="{{ url_for('student.end_practice', session_id=practice_session.id) }}"
+                  style="display: inline-flex; margin: 0;">
+                <button type="button"
+                        id="btn-end-practice"
+                        class="btn-subtle-exit"
+                        onclick="endPracticeSession()"
+                        title="End Practice &amp; View Feedback">
+                    <span class="exit-icon">🏁</span>
+                    <span class="exit-text">End &amp; Get Feedback</span>
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <!-- ====================================================
+         MAIN CHAT VIEWPORT (Takes full vertical space)
+         ==================================================== -->
+    <main class="practice-chat-viewport">
+        <!-- Messages Area (Scrollable) -->
+        <div class="practice-messages-area" id="chat-messages-area" role="log" aria-live="polite" aria-label="Practice conversation">
+            {% if not messages %}
+            <div class="practice-empty-hero" id="chat-empty-state">
+                <div class="empty-hero-icon">⚡</div>
+                <h2 class="empty-hero-title">Ready to practice <em>{{ topic }}</em>?</h2>
+                <p class="empty-hero-sub">
+                    You'll receive 4–6 focused technical questions. Speak or type your answers naturally.
+                </p>
+                <button type="button"
+                        class="btn btn-primary btn-lg practice-begin-hero-btn"
+                        id="btn-begin-interview"
+                        onclick="sendPracticeAnswer('')">
+                    <span>🚀</span> Begin Practice Drill
+                </button>
+            </div>
+            {% else %}
+            {% for msg in messages %}
+            <div class="practice-bubble-row {{ 'row-ai' if msg.sender == 'ai' else 'row-student' }}">
+                {% if msg.sender == 'ai' %}
+                <div class="bubble-avatar-ai" title="AI Practice Coach">🤖</div>
+                {% endif %}
+                <div class="practice-bubble {{ 'bubble-ai' if msg.sender == 'ai' else 'bubble-student' }}">
+                    <div class="bubble-meta">
+                        <span class="bubble-author">{{ 'AI Practice Coach' if msg.sender == 'ai' else user.name }}</span>
+                        {% if msg.created_at %}
+                        <span class="bubble-timestamp">{{ msg.created_at[11:16] if msg.created_at|length >= 16 else '' }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="bubble-text-content">{{ msg.message_text }}</div>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Typing Indicator Row -->
+            <div class="practice-bubble-row row-ai typing-row hidden" id="typing-indicator" aria-live="polite">
+                <div class="bubble-avatar-ai">🤖</div>
+                <div class="practice-bubble bubble-ai typing-bubble">
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <span class="typing-label-text">Practice Coach is formulating a question…</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listening Status Bar (Visible only when microphone is recording) -->
+        <div class="mic-live-banner hidden" id="mic-live-banner" aria-live="polite">
+            <span class="mic-pulse-ring"></span>
+            <span class="mic-live-text">🎙️ Listening… Speak clearly. Click mic again or Send when finished.</span>
+        </div>
+
+        <!-- ====================================================
+             FIXED BOTTOM INPUT BAR
+             ==================================================== -->
+        <footer class="practice-input-dock" id="practice-input-dock">
+            {% if practice_session.status == 'completed' %}
+            <div class="practice-completed-dock">
+                <span>✅ This practice drill has concluded.</span>
+                <a href="{{ url_for('student.interview_results', session_id=practice_session.id) }}"
+                   class="btn btn-primary btn-sm">
+                    View Feedback Scorecard &rarr;
+                </a>
+            </div>
+            {% else %}
+            
+            <div class="practice-controls-row" id="controls-row-wrapper">
+                <!-- Large 50px Speaker (TTS) Toggle Button -->
+                <button type="button"
+                        id="btn-speaker-toggle"
+                        class="dock-circle-btn dock-btn-speaker"
+                        aria-label="Mute or Unmute AI voice"
+                        title="AI Voice (Text-to-Speech): ON">
+                    <span class="btn-icon" id="speaker-icon">🔊</span>
+                </button>
+
+                <!-- Input Textarea & Mic Wrapper -->
+                <div class="dock-input-wrapper">
+                    <textarea
+                        id="student-answer-input"
+                        class="practice-dock-textarea"
+                        placeholder="Type your answer here, or click the mic to speak…"
+                        rows="1"
+                        maxlength="3000"
+                        aria-label="Your answer"
+                    ></textarea>
+
+                    <!-- Large 50px Microphone Button -->
+                    <button type="button"
+                            id="btn-mic-toggle"
+                            class="dock-circle-btn dock-btn-mic"
+                            aria-label="Start or Stop voice input"
+                            title="Speak your answer (Speech-to-Text)">
+                        <span class="btn-icon" id="mic-icon">🎙️</span>
+                    </button>
+                </div>
+
+                <!-- Send Answer Button -->
+                <button type="button"
+                        class="btn btn-primary dock-send-btn"
+                        id="btn-send-answer"
+                        onclick="sendPracticeAnswer()"
+                        aria-label="Send answer">
+                    <span>Send</span>
+                    <span class="send-arrow">➤</span>
+                </button>
+            </div>
+
+            <div class="dock-meta-hints">
+                <span class="meta-hint-text">Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to send &bull; Microphone supported</span>
+                <span class="dock-char-count" id="dock-char-count">0 / 3000</span>
+            </div>
+            {% endif %}
+        </footer>
+    </main>
+</div>
+
+<style>
+/* ============================================================
+   PRACTICE MODE — CLEAN, FOCUSED, FULL-HEIGHT UI
+   ============================================================ */
+
+.practice-room-container {
+    height: calc(100vh - 76px);
+    max-height: calc(100vh - 76px);
+    max-width: 980px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 1rem 0.5rem;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* Compact Header */
+.practice-compact-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    margin-bottom: 0.6rem;
+    flex-shrink: 0;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.practice-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.practice-topic-badge {
+    background: linear-gradient(135deg, rgba(217,119,6,0.25), rgba(180,83,9,0.35));
+    border: 1px solid rgba(245,158,11,0.5);
+    color: #fef3c7;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.3rem 0.85rem;
+    border-radius: 99px;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: 0 0 12px rgba(245,158,11,0.2);
+}
+
+.practice-counter-pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 99px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.counter-label { font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
+.counter-val   { font-weight: 800; color: #fbbf24; font-size: 0.92rem; }
+.counter-sep   { color: #475569; }
+.counter-total { color: #64748b; font-weight: 600; }
+
+/* Subtle Exit Button */
+.btn-subtle-exit {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    padding: 0.35rem 0.85rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s ease;
+}
+.btn-subtle-exit:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.6);
+    color: #fee2e2;
+    transform: translateY(-1px);
+}
+
+/* Viewport Area */
+.practice-chat-viewport {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* critical for nested flex scrolling */
+    background: rgba(15, 23, 42, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 18px;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Messages Area */
+.practice-messages-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem 1.25rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    scroll-behavior: smooth;
+}
+
+/* Custom Sleek Scrollbar */
+.practice-messages-area::-webkit-scrollbar { width: 6px; }
+.practice-messages-area::-webkit-scrollbar-track { background: transparent; }
+.practice-messages-area::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 99px;
+}
+.practice-messages-area::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Empty Hero */
+.practice-empty-hero {
+    margin: auto;
+    text-align: center;
+    max-width: 480px;
+    padding: 2.5rem 1.5rem;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+.empty-hero-icon {
+    font-size: 3rem;
+    margin-bottom: 0.75rem;
+    filter: drop-shadow(0 0 16px rgba(245,158,11,0.5));
+}
+.empty-hero-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #f8fafc;
+    margin: 0 0 0.5rem;
+}
+.empty-hero-title em {
+    color: #fbbf24;
+    font-style: normal;
+}
+.empty-hero-sub {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    margin: 0 0 1.5rem;
+    line-height: 1.5;
+}
+.practice-begin-hero-btn {
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #d97706, #b45309);
+    border-color: #f59e0b;
+    box-shadow: 0 4px 20px rgba(217,119,6,0.4);
+    transition: all 0.2s ease;
+}
+.practice-begin-hero-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(217,119,6,0.6);
+}
+
+/* Chat Bubble Rows */
+.practice-bubble-row {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    animation: bubbleFadeUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes bubbleFadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.row-ai { justify-content: flex-start; }
+.row-student { justify-content: flex-end; }
+
+.bubble-avatar-ai {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #d97706, #78350f);
+    border: 1.5px solid rgba(245,158,11,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 2px 10px rgba(217,119,6,0.3);
+    margin-top: 2px;
+}
+
+.practice-bubble {
+    max-width: 78%;
+    padding: 0.9rem 1.15rem;
+    border-radius: 16px;
+    line-height: 1.55;
+    font-size: 0.93rem;
+    word-break: break-word;
+    position: relative;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.bubble-ai {
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #f1f5f9;
+    border-top-left-radius: 4px;
+}
+
+.bubble-student {
+    background: linear-gradient(135deg, #4f46e5, #4338ca);
+    border: 1px solid rgba(129, 140, 248, 0.35);
+    color: #ffffff;
+    border-top-right-radius: 4px;
+    box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
+}
+
+.bubble-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.72rem;
+}
+.bubble-ai .bubble-author { color: #fbbf24; font-weight: 700; }
+.bubble-student .bubble-author { color: #c7d2fe; font-weight: 600; }
+.bubble-timestamp { color: rgba(255, 255, 255, 0.4); }
+
+.bubble-text-content {
+    font-size: 0.94rem;
+    white-space: pre-wrap;
+}
+
+/* Typing Indicator */
+.typing-bubble {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.75rem 1rem;
+}
+.typing-dots {
+    display: inline-flex;
+    gap: 4px;
+}
+.typing-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #fbbf24;
+    animation: typingBounce 1.4s infinite ease-in-out both;
+}
+.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+@keyframes typingBounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1.15); opacity: 1; }
+}
+.typing-label-text { font-size: 0.8rem; color: #94a3b8; font-style: italic; }
+
+/* Mic Live Banner */
+.mic-live-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(217, 119, 6, 0.18);
+    border-top: 1px solid rgba(245, 158, 11, 0.4);
+    border-bottom: 1px solid rgba(245, 158, 11, 0.4);
+    padding: 0.45rem 1rem;
+    font-size: 0.82rem;
+    color: #fef3c7;
+    animation: fadeIn 0.2s ease;
+}
+.mic-pulse-ring {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    animation: livePulse 1.2s infinite;
+}
+@keyframes livePulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* ============================================================
+   FIXED BOTTOM INPUT DOCK
+   ============================================================ */
+.practice-input-dock {
+    flex-shrink: 0;
+    background: rgba(15, 23, 42, 0.8);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.85rem 1rem 0.65rem;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.practice-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+/* 50px Large Circular Buttons (Speaker & Mic) */
+.dock-circle-btn {
+    width: 50px;
+    height: 50px;
+    min-width: 50px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
+    font-size: 1.35rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    outline: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.dock-circle-btn:hover:not(:disabled) {
+    transform: scale(1.06);
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.18);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+}
+.dock-circle-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Speaker specifics */
+.dock-btn-speaker {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.35);
+}
+.dock-btn-speaker.is-muted {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+/* Mic specifics & active pulsing state */
+.dock-btn-mic {
+    background: rgba(217, 119, 6, 0.15);
+    border-color: rgba(245, 158, 11, 0.4);
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    font-size: 1.2rem;
+}
+.dock-btn-mic:hover:not(:disabled) {
+    transform: translateY(-50%) scale(1.08);
+    background: rgba(217, 119, 6, 0.3);
+    border-color: #f59e0b;
+}
+.dock-btn-mic.is-listening {
+    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+    border-color: #f87171 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), 0 0 16px rgba(239, 68, 68, 0.6);
+    animation: micWave 1.4s infinite;
+}
+@keyframes micWave {
+    0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8); }
+    70%  { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* Input Wrapper & Textarea */
+.dock-input-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.practice-dock-textarea {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    color: #f8fafc;
+    font-family: inherit;
+    font-size: 0.94rem;
+    line-height: 1.45;
+    padding: 0.75rem 3.4rem 0.75rem 1rem;
+    resize: none;
+    outline: none;
+    box-sizing: border-box;
+    min-height: 48px;
+    max-height: 140px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.practice-dock-textarea:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+/* Send Button */
+.dock-send-btn {
+    height: 50px;
+    min-width: 96px;
+    padding: 0 1.25rem;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    border-color: #818cf8;
+    box-shadow: 0 4px 16px rgba(79, 70, 229, 0.35);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.dock-send-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+}
+.send-arrow { font-size: 0.9rem; }
+
+/* Meta Hints */
+.dock-meta-hints {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.4rem;
+    font-size: 0.72rem;
+    color: #64748b;
+    padding: 0 0.25rem;
+}
+.meta-hint-text kbd {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.68rem;
+    color: #94a3b8;
+}
+
+/* Completed Dock */
+.practice-completed-dock {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.5rem;
+    font-size: 0.9rem;
+    color: #a5b4fc;
+}
+
+.hidden { display: none !important; }
+</style>
+
+<script>
+/* ============================================================
+   PRACTICE ROOM CONTROLLER
+   Integrates Speech-to-Text (VoiceInputManager), TTS (TTSManager),
+   Auto-Scrolling, and Single-Topic Practice Flow.
+   ============================================================ */
+(function () {
+    'use strict';
+
+    const SESSION_ID = {{ practice_session.id }};
+    const CHAT_URL   = "{{ url_for('student.practice_chat', session_id=practice_session.id) }}";
+    const USER_NAME  = "{{ user.name | e }}";
+
+    const messagesArea  = document.getElementById('chat-messages-area');
+    const textarea      = document.getElementById('student-answer-input');
+    const sendBtn       = document.getElementById('btn-send-answer');
+    const typingRow     = document.getElementById('typing-indicator');
+    const charDisplay   = document.getElementById('dock-char-count');
+    const counterVal    = document.getElementById('current-q-num');
+    const btnSpeaker    = document.getElementById('btn-speaker-toggle');
+    const speakerIcon   = document.getElementById('speaker-icon');
+    const btnMic        = document.getElementById('btn-mic-toggle');
+    const micLiveBanner = document.getElementById('mic-live-banner');
+
+    let studentTurnsCount = {{ messages | selectattr('sender', 'equalto', 'student') | list | length }};
+
+    // Update question counter display based on turns
+    function updateCounter() {
+        if (counterVal) {
+            const qNum = Math.min(6, Math.max(1, studentTurnsCount + 1));
+            counterVal.textContent = qNum;
+        }
+    }
+    updateCounter();
+
+    // ── Auto-Scroll Helper ───────────────────────────────────────────
+    function scrollToBottom(smooth = true) {
+        if (!messagesArea) return;
+        requestAnimationFrame(() => {
+            messagesArea.scrollTo({
+                top: messagesArea.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
+        });
+    }
+    // Initial scroll on load
+    scrollToBottom(false);
+
+    // ── Auto-resize Textarea & Char Counter ──────────────────────────
+    function handleTextareaInput() {
+        if (!textarea) return;
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 140) + 'px';
+        if (charDisplay) {
+            charDisplay.textContent = `${textarea.value.length} / 3000`;
+        }
+    }
+
+    if (textarea) {
+        textarea.addEventListener('input', handleTextareaInput);
+        textarea.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                sendPracticeAnswer();
+            }
+        });
+    }
+
+    // ================================================================
+    // MODULE: Text-to-Speech (TTSManager)
+    // ================================================================
+    const TTSManager = (() => {
+        const synth = window.speechSynthesis || null;
+        let isMuted = false;
+
+        function speak(text) {
+            if (!synth || !text || isMuted) return;
+            try {
+                synth.cancel(); // stop any ongoing speech
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate   = 0.95;
+                utterance.pitch  = 1.0;
+                utterance.volume = 1.0;
+
+                const voices = synth.getVoices() || [];
+                const englishVoice = voices.find(v => v.lang.startsWith('en') && /natural|google|samantha|daniel/i.test(v.name))
+                                  || voices.find(v => v.lang.startsWith('en'))
+                                  || voices[0];
+                if (englishVoice) utterance.voice = englishVoice;
+
+                synth.speak(utterance);
+            } catch (e) {
+                console.warn('[TTS] Speech error:', e);
+            }
+        }
+
+        function toggle() {
+            isMuted = !isMuted;
+            if (isMuted) {
+                if (synth) synth.cancel();
+                if (btnSpeaker) {
+                    btnSpeaker.classList.add('is-muted');
+                    btnSpeaker.title = 'AI Voice: OFF (Click to unmute)';
+                }
+                if (speakerIcon) speakerIcon.textContent = '🔇';
+            } else {
+                if (btnSpeaker) {
+                    btnSpeaker.classList.remove('is-muted');
+                    btnSpeaker.title = 'AI Voice: ON (Click to mute)';
+                }
+                if (speakerIcon) speakerIcon.textContent = '🔊';
+            }
+        }
+
+        function cancel() {
+            if (synth) synth.cancel();
+        }
+
+        window.addEventListener('pagehide', cancel);
+        return { speak, toggle, cancel };
+    })();
+
+    if (btnSpeaker) {
+        btnSpeaker.addEventListener('click', TTSManager.toggle);
+    }
+
+    // ================================================================
+    // MODULE: Speech-to-Text (VoiceInputManager)
+    // Reuses standard SpeechRecognition API with visual pulsing feedback.
+    // ================================================================
+    const VoiceInputManager = (() => {
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+
+        if (!SpeechRec) {
+            if (btnMic) {
+                btnMic.disabled = true;
+                btnMic.title = 'Voice input is not supported in this browser (Use Chrome or Edge).';
+            }
+            return { toggle: () => {}, stop: () => {} };
+        }
+
+        let recognition            = null;
+        let isListening            = false;
+        let sessionPrefix          = '';
+        let sessionFinalTranscript = '';
+        let restartBlocked         = false;
+
+        function buildRecognition() {
+            const rec = new SpeechRec();
+            rec.continuous     = true;
+            rec.interimResults = true;
+            rec.lang           = 'en-US';
+            rec.maxAlternatives = 1;
+
+            rec.onstart = () => {
+                isListening = true;
+                if (btnMic) btnMic.classList.add('is-listening');
+                if (micLiveBanner) micLiveBanner.classList.remove('hidden');
+                if (textarea) textarea.placeholder = 'Listening… speak your answer clearly';
+            };
+
+            rec.onresult = (event) => {
+                if (!textarea) return;
+                let interimChunk = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const res = event.results[i];
+                    if (res.isFinal) {
+                        sessionFinalTranscript += res[0].transcript;
+                    } else {
+                        interimChunk += res[0].transcript;
+                    }
+                }
+                textarea.value = sessionPrefix + sessionFinalTranscript + interimChunk;
+                handleTextareaInput();
+            };
+
+            rec.onend = () => {
+                if (isListening && !restartBlocked) {
+                    sessionPrefix = sessionPrefix + sessionFinalTranscript;
+                    sessionFinalTranscript = '';
+                    try {
+                        recognition = buildRecognition();
+                        recognition.start();
+                    } catch (err) {
+                        _stopInternal();
+                    }
+                } else {
+                    _stopInternal();
+                }
+            };
+
+            rec.onerror = (event) => {
+                if (event.error === 'no-speech') return; // ignore silence timeout
+                console.warn('[VoiceInput] Error:', event.error);
+                restartBlocked = true;
+                _stopInternal();
+            };
+
+            return rec;
+        }
+
+        function _stopInternal() {
+            isListening = false;
+            if (btnMic) btnMic.classList.remove('is-listening');
+            if (micLiveBanner) micLiveBanner.classList.add('hidden');
+            if (textarea) {
+                textarea.placeholder = 'Type your answer here, or click the mic to speak…';
+            }
+        }
+
+        function start() {
+            if (isListening || !textarea) return;
+            const cur = textarea.value || '';
+            sessionPrefix = cur.trim() ? cur.trimEnd() + ' ' : '';
+            sessionFinalTranscript = '';
+            restartBlocked = false;
+
+            recognition = buildRecognition();
+            try {
+                recognition.start();
+            } catch (err) {
+                console.warn('[VoiceInput] start failed:', err);
+                _stopInternal();
+            }
+        }
+
+        function stop() {
+            if (!isListening) return;
+            restartBlocked = true;
+            if (recognition) {
+                try { recognition.stop(); } catch(e) {}
+            }
+            _stopInternal();
+        }
+
+        function toggle() {
+            if (isListening) stop();
+            else start();
+        }
+
+        return { toggle, stop, start };
+    })();
+
+    if (btnMic) {
+        btnMic.addEventListener('click', VoiceInputManager.toggle);
+    }
+
+    // ── Append Bubble Helper ─────────────────────────────────────────
+    function appendBubble(sender, text) {
+        const emptyState = document.getElementById('chat-empty-state');
+        if (emptyState) emptyState.remove();
+
+        const isAI = sender === 'ai';
+        const now = new Date();
+        const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+        const row = document.createElement('div');
+        row.className = `practice-bubble-row ${isAI ? 'row-ai' : 'row-student'}`;
+        
+        const avatarHtml = isAI ? `<div class="bubble-avatar-ai" title="AI Practice Coach">🤖</div>` : '';
+        const authorName = isAI ? 'AI Practice Coach' : USER_NAME;
+
+        row.innerHTML = `
+            ${avatarHtml}
+            <div class="practice-bubble ${isAI ? 'bubble-ai' : 'bubble-student'}">
+                <div class="bubble-meta">
+                    <span class="bubble-author">${authorName}</span>
+                    <span class="bubble-timestamp">${timeStr}</span>
+                </div>
+                <div class="bubble-text-content">${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            </div>`;
+
+        if (typingRow) {
+            messagesArea.insertBefore(row, typingRow);
+        } else {
+            messagesArea.appendChild(row);
+        }
+        scrollToBottom();
+    }
+
+    function showTyping() {
+        if (typingRow) typingRow.classList.remove('hidden');
+        scrollToBottom();
+    }
+    function hideTyping() {
+        if (typingRow) typingRow.classList.add('hidden');
+    }
+
+    function setControlsDisabled(state) {
+        if (sendBtn) sendBtn.disabled = state;
+        if (textarea) textarea.disabled = state;
+        if (btnMic) btnMic.disabled = state;
+    }
+
+    // ── Send Practice Answer ─────────────────────────────────────────
+    window.sendPracticeAnswer = function (overrideAnswer) {
+        VoiceInputManager.stop();
+
+        const answerText = (overrideAnswer !== undefined) 
+            ? overrideAnswer 
+            : (textarea ? textarea.value.trim() : '');
+
+        if (answerText === '' && overrideAnswer === undefined) {
+            if (textarea) textarea.focus();
+            return;
+        }
+
+        // Optimistic student bubble
+        if (answerText) {
+            appendBubble('student', answerText);
+            if (textarea) {
+                textarea.value = '';
+                handleTextareaInput();
+            }
+            studentTurnsCount++;
+            updateCounter();
+        }
+
+        setControlsDisabled(true);
+        showTyping();
+
+        fetch(CHAT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answer: answerText })
+        })
+        .then(r => r.json())
+        .then(data => {
+            hideTyping();
+            setControlsDisabled(false);
+
+            if (data.ai_message) {
+                appendBubble('ai', data.ai_message);
+                TTSManager.speak(data.ai_message);
+            } else if (data.error) {
+                appendBubble('ai', `⚠️ ${data.error}`);
+            }
+
+            if (textarea) textarea.focus();
+        })
+        .catch(err => {
+            hideTyping();
+            setControlsDisabled(false);
+            appendBubble('ai', '⚠️ Network error communicating with Practice Coach. Please try again.');
+            console.error('[PracticeRoom]', err);
+        });
+    };
+
+    // ── End Practice Session ─────────────────────────────────────────
+    window.endPracticeSession = function () {
+        VoiceInputManager.stop();
+        TTSManager.cancel();
+
+        if (!confirm('End your practice drill and review your performance feedback?')) {
+            return;
+        }
+
+        const overlay = document.getElementById('analysis-loading-overlay');
+        if (overlay) {
+            overlay.style.display = 'flex';
+            overlay.classList.remove('hidden');
+        }
+
+        const form = document.getElementById('end-practice-form');
+        if (form) form.submit();
+    };
+})();
+</script>
+{% endblock %}

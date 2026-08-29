@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Interview with {{ interview_session.interviewer_name }} | InterviewCoach AI{% endblock %}
+{% block title %}Interview Room — {{ interview_session.interviewer_name }} | InterviewCoach AI{% endblock %}
 
 {% block content %}
-<div class="interview-room-wrapper"
+<div class="interview-room-wrapper pro-room-wrapper"
      data-session-id="{{ interview_session.id }}"
      data-session-status="{{ interview_session.status }}"
      data-interviewer-name="{{ interview_session.interviewer_name }}"
@@ -42,321 +42,511 @@
         </div>
     </div>
 
-    <!-- Split Screen Grid -->
-    <div class="interview-room-grid">
+    <!-- =========================================================
+         STICKY TOP HEADER BAR (Always accessible)
+         ========================================================= -->
+    <header class="interview-top-bar" id="interview-top-bar">
+        <div class="top-bar-left">
+            <div class="room-title-group">
+                <h1 class="room-main-title">Interview Room</h1>
+                <span class="room-role-pill">{{ interview_session.job_role }}</span>
+            </div>
+        </div>
 
-        <!-- =========================================================
-             LEFT COLUMN: Interviewer Info, Context & Session Controls
-             ========================================================= -->
-        <aside class="interview-sidebar">
+        <div class="top-bar-center">
+            <div class="top-timer-badge" title="Elapsed interview duration">
+                <span class="timer-icon">⏱️</span>
+                <span id="interview-timer" class="timer-value" aria-label="Elapsed interview time">00:00</span>
+            </div>
+        </div>
 
-            <!-- Interviewer Profile Card -->
-            <div class="room-card interviewer-card">
-                <div class="interviewer-header">
+        <div class="top-bar-right">
+            <!-- 1. Speaker Voice Toggle -->
+            <button type="button"
+                    id="btn-tts-toggle"
+                    class="top-ctrl-btn"
+                    aria-label="Mute AI voice"
+                    title="Mute / Unmute AI voice">
+                <span class="ctrl-icon">🔊</span>
+                <span class="ctrl-label">Speaker On</span>
+            </button>
 
-                    <!-- Avatar wrapped in speaking-ring animator -->
-                    <div class="interviewer-avatar-wrap">
-                        <div class="avatar-speaking-ring" id="avatar-speaking-ring">
-                            <div class="interviewer-avatar avatar-photo-frame {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}"
-                                 id="sidebar-avatar">
-                                <!-- Real Photo Base Layer -->
-                                <img id="avatar-portrait-img"
-                                     class="avatar-portrait-img"
-                                     src="{{ url_for('static', filename='js/avatar/img/interviewer_' ~ interview_session.interviewer_gender ~ '.jpg') }}"
-                                     alt="{{ interview_session.interviewer_name }} Portrait"
-                                     loading="eager" />
+            <!-- 2. Fullscreen Toggle -->
+            <button type="button"
+                    id="btn-fullscreen"
+                    class="top-ctrl-btn"
+                    aria-label="Enter fullscreen"
+                    title="Toggle fullscreen">
+                <span class="ctrl-icon">⛶</span>
+                <span class="ctrl-label">Fullscreen</span>
+            </button>
 
-                                <!-- Transparent Interactive Facial Overlays Layer -->
-                                <div class="avatar-overlays-layer" aria-hidden="true">
-                                    <!-- Eyelid Overlays (Blink Target) -->
-                                    <div id="overlay-eye-left" class="avatar-overlay-eye overlay-eye-left"></div>
-                                    <div id="overlay-eye-right" class="avatar-overlay-eye overlay-eye-right"></div>
+            <!-- 3. Red End Interview Button -->
+            {% if interview_session.status != 'completed' %}
+                <form action="{{ url_for('student.end_interview', session_id=interview_session.id) }}"
+                      method="POST"
+                      id="end-interview-form"
+                      class="end-interview-form"
+                      onsubmit="return confirmEndInterview(event);">
+                    <button type="submit"
+                            id="btn-end-interview"
+                            class="btn-top-end"
+                            aria-label="End interview session"
+                            title="Finalize interview">
+                        <span>⏹</span> End Interview
+                    </button>
+                </form>
+            {% else %}
+                <a href="{{ url_for('student.dashboard') }}"
+                   class="btn-top-return"
+                   title="Return to Dashboard">
+                    <span>🏠</span> Dashboard
+                </a>
+            {% endif %}
+        </div>
+    </header>
 
-                                    <!-- Eyebrow Accent Overlays -->
-                                    <div id="overlay-brow-left" class="avatar-overlay-brow overlay-brow-left"></div>
-                                    <div id="overlay-brow-right" class="avatar-overlay-brow overlay-brow-right"></div>
+    <!-- =========================================================
+         DUAL RECTANGULAR VIDEO CALL STAGE (Side by Side)
+         ========================================================= -->
+    <section class="video-stage-grid">
+        
+        <!-- LEFT TILE: AI Interviewer Active Video Feed -->
+        <div class="video-card-tile interviewer-video-tile" id="interviewer-tile">
+            
+            <!-- Top-Left Speaking Status Badge -->
+            <div class="tile-status-badge speaking-badge" id="ai-speaking-badge">
+                <span class="status-pulse-dot"></span>
+                <span id="ai-speaking-text">IDLE</span>
+            </div>
 
-                                    <!-- Morphing Mouth Viseme Overlay -->
-                                    <svg id="overlay-mouth-svg" class="avatar-overlay-mouth" viewBox="0 0 100 60">
-                                        <path id="avatar-mouth" class="mouth-viseme-path" d="M 15 30 Q 50 34 85 30" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- 5-bar sound-wave equalizer — animated when AI is speaking -->
-                        <div class="avatar-wave-bars" id="avatar-wave-bars" aria-hidden="true">
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                            <div class="wave-bar"></div>
-                        </div>
+            <!-- Full Rectangular Video Feed Frame -->
+            <div class="avatar-speaking-ring" id="avatar-speaking-ring">
+                <div class="interviewer-avatar avatar-photo-frame {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}"
+                     id="sidebar-avatar">
+                    
+                    <!-- Portrait Base Layer -->
+                    <img id="avatar-portrait-img"
+                         class="avatar-portrait-img"
+                         src="{{ url_for('static', filename='js/avatar/img/interviewer_' ~ interview_session.interviewer_gender ~ '.jpg') }}"
+                         alt="{{ interview_session.interviewer_name }} Portrait"
+                         loading="eager" />
+
+                    <!-- Transparent Micro-Overlays Layer -->
+                    <div class="avatar-overlays-layer" aria-hidden="true">
+                        <!-- Delicate Eyelids -->
+                        <div id="overlay-eye-left" class="avatar-overlay-eye overlay-eye-left"></div>
+                        <div id="overlay-eye-right" class="avatar-overlay-eye overlay-eye-right"></div>
+
+                        <!-- Subtle Eyebrows -->
+                        <div id="overlay-brow-left" class="avatar-overlay-brow overlay-brow-left"></div>
+                        <div id="overlay-brow-right" class="avatar-overlay-brow overlay-brow-right"></div>
+
+                        <!-- Subtle Morphing Mouth Viseme -->
+                        <svg id="overlay-mouth-svg" class="avatar-overlay-mouth" viewBox="0 0 100 60">
+                            <path id="avatar-mouth" class="mouth-viseme-path" d="M 20 30 Q 50 32 80 30" />
+                        </svg>
                     </div>
 
-                    <div class="interviewer-title-group">
-                        <div class="live-status-pill">
-                            <span class="live-pulse"></span>
-                            <span>{% if interview_session.status == 'completed' %}Session Completed{% else %}Live Interview{% endif %}</span>
-                        </div>
-                        <h2 class="interviewer-display-name">{{ interview_session.interviewer_name }}</h2>
-                        <span class="interviewer-role-tag">
-                            {% if interview_session.interviewer_gender == 'female' %}Persona: Perceptive &amp; Insightful{% else %}Persona: Analytical &amp; Structured{% endif %}
-                        </span>
-                    </div>
-                </div>
-
-                <div class="room-divider"></div>
-
-                <!-- Session Metadata -->
-                <div class="session-meta-list">
-                    <div class="session-meta-item">
-                        <span class="meta-label">Target Role</span>
-                        <span class="meta-value role-highlight">{{ interview_session.job_role }}</span>
-                    </div>
-                    <div class="session-meta-item">
-                        <span class="meta-label">Candidate</span>
-                        <span class="meta-value">{{ user.name }}</span>
-                    </div>
-                    <div class="session-meta-item">
-                        <span class="meta-label">Session ID</span>
-                        <span class="meta-value font-mono">#{{ interview_session.id }}</span>
-                    </div>
-                    <div class="session-meta-item">
-                        <span class="meta-label">Started</span>
-                        <span class="meta-value">{{ interview_session.created_at or 'Just now' }}</span>
-                    </div>
                 </div>
             </div>
 
-            <!-- #10 — Rotating Interview Tips Card -->
-            <div class="room-card rotating-tips-card" id="rotating-tips-card">
-                <p class="rotating-tip-header">💡 Interview Tip</p>
-                <p class="rotating-tip-text" id="rotating-tip-text">
-                    Maintain a steady pace — rushing signals nervousness, while clarity signals confidence.
-                </p>
-                <div class="tip-dot-row" id="tip-dot-row" aria-hidden="true"></div>
+            <!-- Thinking Filler Cue (shown during Gemini generation) -->
+            <div class="thinking-filler-cue" id="thinking-filler" aria-live="polite">
+                <span class="filler-avatar" id="filler-avatar-emoji">🤔</span>
+                <span id="filler-text"></span>
             </div>
 
-            <!-- Camera Self-View Panel (Module 10) -->
-            <div class="camera-panel" id="camera-panel">
-                <div class="camera-panel-header">
-                    <span class="camera-panel-title">📷 Self View</span>
+            <!-- 5-bar Audio Waveform Equalizer along bottom of tile -->
+            <div class="avatar-wave-bars" id="avatar-wave-bars" aria-hidden="true">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+            </div>
+
+            <!-- Bottom-Right Name Badge -->
+            <div class="tile-name-badge">
+                <span class="badge-icon">🎙️</span>
+                <span class="badge-text">{{ interview_session.interviewer_name }} (Interviewer)</span>
+            </div>
+
+            <!-- Subtitle Caption Bar directly below video tile -->
+            <div class="tile-subtitle-bar" id="ai-subtitle-bar" aria-live="polite">
+                <span class="subtitle-label">Interviewer:</span>
+                <span class="subtitle-text" id="ai-subtitle-text">Ready to begin your interview.</span>
+            </div>
+
+        </div>
+
+        <!-- RIGHT TILE: Student Candidate Live Camera Feed -->
+        <div class="video-card-tile candidate-video-tile" id="candidate-tile">
+            
+            <!-- Top-Left Camera Live Badge -->
+            <div class="tile-status-badge live-cam-badge" id="candidate-cam-badge">
+                <span class="cam-dot"></span>
+                <span>Live Video</span>
+            </div>
+
+            <!-- Camera Video Feed Container -->
+            <div class="camera-stream-wrap">
+                <video id="camera-preview" autoplay muted playsinline class="candidate-video-stream" aria-label="Candidate camera self view"></video>
+                <div class="camera-off-placeholder" id="camera-off-placeholder" style="display: none;">
+                    <div class="candidate-initials-circle">
+                        {{ user.name[:2]|upper }}
+                    </div>
+                    <span class="camera-off-msg">📷 Camera is turned off</span>
+                </div>
+            </div>
+
+            <!-- Bottom-Right Name Badge -->
+            <div class="tile-name-badge">
+                <span class="badge-icon">🎓</span>
+                <span class="badge-text">{{ user.name }} (You)</span>
+            </div>
+
+            <!-- Student Action & Connection Bar below camera tile -->
+            <div class="tile-controls-bar">
+                <div class="controls-left">
+                    <button type="button"
+                            id="btn-mic"
+                            class="tile-btn-action"
+                            aria-label="Speak answer microphone toggle"
+                            title="Click to speak your answer">
+                        <span class="tile-btn-icon">🎤</span>
+                        <span class="tile-btn-text">Mic On</span>
+                    </button>
+
                     <button type="button"
                             id="btn-cam-toggle"
-                            class="btn-icon-voice"
+                            class="tile-btn-action"
                             aria-label="Toggle camera"
                             title="Turn camera on/off">
-                        📷 On
+                        <span class="tile-btn-icon">📹</span>
+                        <span class="tile-btn-text">Camera On</span>
                     </button>
                 </div>
-                <video id="camera-preview" autoplay muted playsinline aria-label="Camera self preview"></video>
-                <div class="camera-off-placeholder" id="camera-off-placeholder" style="display:none;">
-                    📷 <span>Camera Off</span>
+
+                <div class="controls-right">
+                    <div class="connection-quality-pill" title="WebRTC & Server Connection Status">
+                        <span class="connection-dot"></span>
+                        <span>Stable Connection</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- =========================================================
+         4-COLUMN BOTTOM PANELS ROW
+         ========================================================= -->
+    <div class="panels-grid-row">
+
+        <!-- COLUMN 1: Interview Progress Checklist -->
+        <div class="panel-card panel-progress" id="panel-progress">
+            <div class="panel-card-header">
+                <span class="panel-header-icon">📋</span>
+                <h3 class="panel-header-title">Interview Progress</h3>
+            </div>
+
+            <div class="panel-card-body">
+                <!-- Overall Progress Bar -->
+                <div class="checklist-progress-wrap">
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" id="checklist-progress-fill" style="width: 25%;"></div>
+                    </div>
+                    <div class="progress-bar-labels">
+                        <span id="checklist-progress-label">Stage 1 of 4</span>
+                        <span id="checklist-progress-percent" class="font-mono">25%</span>
+                    </div>
                 </div>
 
-                <!-- Large Mic Button — anchored to camera panel for natural voice + video UX -->
-                <button type="button"
-                        id="btn-mic"
-                        class="btn-mic-camera"
-                        aria-label="Start voice input"
-                        title="Click to speak your answer">
-                    <span class="btn-mic-icon">🎤</span>
-                    <span class="btn-mic-label">Speak Answer</span>
+                <!-- Vertical 5-Stage Checklist -->
+                <ul class="vertical-stage-checklist" id="vertical-stage-checklist">
+                    <li class="stage-item active" data-stage="1" id="stage-check-1">
+                        <div class="stage-status-icon">✓</div>
+                        <div class="stage-info">
+                            <strong class="stage-title">1. Introduction &amp; Greeting</strong>
+                            <span class="stage-desc">Readiness check &amp; background</span>
+                        </div>
+                    </li>
+                    <li class="stage-item" data-stage="2" id="stage-check-2">
+                        <div class="stage-status-icon">2</div>
+                        <div class="stage-info">
+                            <strong class="stage-title">2. Technical Competency</strong>
+                            <span class="stage-desc">Core skills &amp; conceptual depth</span>
+                        </div>
+                    </li>
+                    <li class="stage-item" data-stage="3" id="stage-check-3">
+                        <div class="stage-status-icon">3</div>
+                        <div class="stage-info">
+                            <strong class="stage-title">3. Role-Specific Problem Solving</strong>
+                            <span class="stage-desc">Domain scenarios &amp; case questions</span>
+                        </div>
+                    </li>
+                    <li class="stage-item" data-stage="4" id="stage-check-4">
+                        <div class="stage-status-icon">4</div>
+                        <div class="stage-info">
+                            <strong class="stage-title">4. Behavioral &amp; Deep-Dive</strong>
+                            <span class="stage-desc">Communication &amp; adaptability</span>
+                        </div>
+                    </li>
+                    <li class="stage-item" data-stage="5" id="stage-check-5">
+                        <div class="stage-status-icon">🏁</div>
+                        <div class="stage-info">
+                            <strong class="stage-title">5. Final Feedback</strong>
+                            <span class="stage-desc">Evaluation &amp; performance scorecard</span>
+                        </div>
+                    </li>
+                </ul>
+
+                <!-- Hidden element for JS compatibility -->
+                <div id="stage-progress-row" style="display:none;">
+                    <div id="stage-dots">
+                        <div class="stage-dot" data-stage="1"></div>
+                        <div class="stage-dot" data-stage="2"></div>
+                        <div class="stage-dot" data-stage="3"></div>
+                        <div class="stage-dot" data-stage="4"></div>
+                    </div>
+                    <span id="stage-name-text">Greeting &amp; Readiness</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMN 2: Interviewer Details -->
+        <div class="panel-card panel-interviewer" id="panel-interviewer">
+            <div class="panel-card-header">
+                <span class="panel-header-icon">👤</span>
+                <h3 class="panel-header-title">Interviewer Details</h3>
+            </div>
+
+            <div class="panel-card-body">
+                <div class="interviewer-profile-box">
+                    <div class="profile-avatar-thumb">
+                        {% if interview_session.interviewer_gender == 'female' %}👩‍💼{% else %}👨‍💼{% endif %}
+                    </div>
+                    <div class="profile-info-wrap">
+                        <h4 class="profile-name">{{ interview_session.interviewer_name }}</h4>
+                        <span class="profile-role-tag">{{ interview_session.job_role }} Lead</span>
+                    </div>
+                </div>
+
+                <div class="persona-traits-box">
+                    <span class="traits-label">Interviewer Persona:</span>
+                    <p class="traits-text">
+                        {% if interview_session.interviewer_gender == 'female' %}
+                            Perceptive, insightful, and focused on systematic reasoning and practical clarity.
+                        {% else %}
+                            Analytical, structured, and focused on technical precision and problem-solving depth.
+                        {% endif %}
+                    </p>
+                </div>
+
+                <div class="interviewer-stats-list">
+                    <div class="interviewer-stat-item">
+                        <span class="stat-label">Questions Asked</span>
+                        <span class="stat-value font-mono" id="stat-questions-asked">1</span>
+                    </div>
+                    <div class="interviewer-stat-item">
+                        <span class="stat-label">Candidate</span>
+                        <span class="stat-value">{{ user.name }}</span>
+                    </div>
+                    <div class="interviewer-stat-item">
+                        <span class="stat-label">Session ID</span>
+                        <span class="stat-value font-mono">#{{ interview_session.id }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMN 3: Conversation / Transcript Tabbed Panel -->
+        <div class="panel-card panel-conversation" id="panel-conversation">
+            <div class="panel-tab-header">
+                <button type="button" class="tab-btn active" id="tab-btn-conversation" onclick="switchPanelTab('conversation')">
+                    💬 Conversation
+                </button>
+                <button type="button" class="tab-btn" id="tab-btn-transcript" onclick="switchPanelTab('transcript')">
+                    📝 Full Transcript
                 </button>
             </div>
 
-            <!-- Session Termination Control -->
-            <div class="room-card session-control-card">
-                {% if interview_session.status != 'completed' %}
-                    <form action="{{ url_for('student.end_interview', session_id=interview_session.id) }}"
-                          method="POST"
-                          id="end-interview-form"
-                          onsubmit="return confirmEndInterview(event);">
-                        <button type="submit" class="btn btn-danger-outline btn-block" id="btn-end-interview">
-                            <span>⏹</span> End Interview
-                        </button>
-                    </form>
-                    <p class="control-hint">Ending the session will finalize your answers and save your complete dialogue.</p>
-                {% else %}
-                    <div class="completed-notice">
-                        <span class="completed-icon">✓</span>
-                        <div class="completed-text">
-                            <strong>Interview Concluded</strong>
-                            <p>This interview session has been archived.</p>
-                        </div>
-                    </div>
-                    <a href="{{ url_for('student.dashboard') }}" class="btn btn-outline btn-block">Return to Dashboard</a>
-                {% endif %}
-            </div>
+            <div class="panel-tab-body">
+                
+                <!-- TAB 1: Live Interactive Conversation Stream -->
+                <div class="tab-pane active" id="tab-pane-conversation">
+                    
+                    <!-- Fixed-Height Scrollable Messages Container -->
+                    <div class="chat-messages-container fixed-scroll" id="chat-messages" role="log" aria-live="polite">
 
-        </aside>
-
-        <!-- =========================================================
-             RIGHT COLUMN: Dynamic Conversation Stream & Input Area
-             ========================================================= -->
-        <section class="interview-chat-area">
-
-            <!-- Chat Area Header Bar -->
-            <div class="chat-header-bar">
-                <div class="chat-header-info">
-                    <div class="chat-header-avatar {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}">
-                        {% if interview_session.interviewer_gender == 'female' %}👩‍💼{% else %}👨‍💼{% endif %}
-                    </div>
-                    <div>
-                        <div class="chat-header-name">{{ interview_session.interviewer_name }}</div>
-                        <div class="chat-header-sub">
-                            <span class="sub-dot"></span> AI Technical Interviewer • {{ interview_session.job_role }}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Voice Controls + Timer + Fullscreen Toolbar -->
-                <div class="chat-voice-controls" id="chat-voice-controls">
-                    <!-- #3 Live Timer -->
-                    <span id="interview-timer" aria-label="Elapsed interview time" title="Elapsed time">00:00</span>
-
-                    <!-- TTS Mute/Unmute Toggle -->
-                    <button type="button"
-                            id="btn-tts-toggle"
-                            class="btn-icon-voice"
-                            aria-label="Mute AI voice"
-                            title="Mute / Unmute AI voice">
-                        🔊
-                    </button>
-
-
-                    <!-- #5 Fullscreen Toggle -->
-                    <button type="button"
-                            id="btn-fullscreen"
-                            class="btn-icon-voice"
-                            aria-label="Enter fullscreen"
-                            title="Fullscreen mode">
-                        ⛶
-                    </button>
-                </div>
-            </div>
-
-            <!-- #8 Stage Progress Row (below header bar) -->
-            <div class="stage-progress-row" id="stage-progress-row">
-                <span class="stage-label-text">Stage</span>
-                <div class="stage-dots" id="stage-dots" aria-label="Interview stage progress">
-                    <div class="stage-dot active" data-stage="1" title="Stage 1: Greeting"></div>
-                    <div class="stage-dot" data-stage="2" title="Stage 2: Introduction"></div>
-                    <div class="stage-dot" data-stage="3" title="Stage 3: Technical"></div>
-                    <div class="stage-dot" data-stage="4" title="Stage 4: Deep Dive"></div>
-                </div>
-                <span class="stage-name-text" id="stage-name-text">Greeting &amp; Readiness Check</span>
-            </div>
-
-            <!-- Message Stream Scroll Container -->
-            <div class="chat-messages-container" id="chat-messages" role="log" aria-live="polite">
-
-                {% if messages %}
-                    {% for msg in messages %}
-                        {% if msg.sender == 'ai' %}
-                            <!-- AI Message Bubble -->
-                            <div class="message-turn message-ai" id="msg-{{ msg.id }}">
-                                <div class="message-avatar-wrap {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}">
-                                    {% if interview_session.interviewer_gender == 'female' %}👩‍💼{% else %}👨‍💼{% endif %}
-                                </div>
-                                <div class="message-body">
-                                    <div class="message-sender-name">{{ interview_session.interviewer_name }}</div>
-                                    <div class="message-bubble bubble-ai">
-                                        <p class="bubble-text">{{ msg.message_text }}</p>
+                        {% if messages %}
+                            {% for msg in messages %}
+                                {% if msg.sender == 'ai' %}
+                                    <div class="message-turn message-ai" id="msg-{{ msg.id }}">
+                                        <div class="message-avatar-wrap {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}">
+                                            {% if interview_session.interviewer_gender == 'female' %}👩‍💼{% else %}👨‍💼{% endif %}
+                                        </div>
+                                        <div class="message-body">
+                                            <div class="message-sender-name">{{ interview_session.interviewer_name }}</div>
+                                            <div class="message-bubble bubble-ai">
+                                                <p class="bubble-text">{{ msg.message_text }}</p>
+                                            </div>
+                                            <div class="message-timestamp">{{ msg.created_at or '' }}</div>
+                                        </div>
                                     </div>
-                                    <div class="message-timestamp">{{ msg.created_at or '' }}</div>
+                                {% else %}
+                                    <div class="message-turn message-student" id="msg-{{ msg.id }}">
+                                        <div class="message-body">
+                                            <div class="message-sender-name">{{ user.name }}</div>
+                                            <div class="message-bubble bubble-student">
+                                                <p class="bubble-text">{{ msg.message_text }}</p>
+                                            </div>
+                                            <div class="message-timestamp">{{ msg.created_at or '' }}</div>
+                                        </div>
+                                        <div class="message-avatar-wrap avatar-student">🎓</div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+
+                        <!-- Typing / Reasoning Indicator -->
+                        <div class="message-turn message-ai typing-wrapper" id="typing-indicator" style="display: none;">
+                            <div class="message-avatar-wrap {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}">
+                                {% if interview_session.interviewer_gender == 'female' %}👩‍💼{% else %}👨‍💼{% endif %}
+                            </div>
+                            <div class="message-body">
+                                <div class="message-sender-name">{{ interview_session.interviewer_name }}</div>
+                                <div class="message-bubble bubble-ai bubble-typing">
+                                    <span class="typing-dot"></span>
+                                    <span class="typing-dot"></span>
+                                    <span class="typing-dot"></span>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Error / Retry Banner -->
+                        <div id="chat-error-banner" class="chat-inline-error" style="display: none;">
+                            <span class="error-icon">⚠️</span>
+                            <span id="error-message-text" class="error-text">Failed to get AI response.</span>
+                            <button type="button" id="btn-retry" class="btn-retry-action">Retry</button>
+                        </div>
+
+                    </div>
+
+                    <!-- Chat Bottom Input Bar -->
+                    <div class="chat-input-wrapper">
+                        {% if interview_session.status != 'completed' %}
+                            <form id="chat-form" class="chat-form" onsubmit="return false;">
+                                <div class="input-container">
+                                    <textarea
+                                        id="chat-input"
+                                        class="chat-textarea"
+                                        placeholder="Type your answer here… (Enter to send, Shift+Enter for new line)"
+                                        rows="1"
+                                        autocomplete="off"
+                                        spellcheck="true"></textarea>
+                                    <button type="button" id="btn-send" class="btn-send-message" aria-label="Send Answer" title="Send answer">
+                                        <svg class="send-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </form>
+                            <div class="chat-input-helper">
+                                <span><kbd>Enter ↵</kbd> send</span>
+                                <span class="helper-separator">•</span>
+                                <span id="mic-listening-badge" role="status" aria-live="polite">
+                                    <span class="mic-listening-dot"></span>
+                                    Listening…
+                                </span>
                             </div>
                         {% else %}
-                            <!-- Student Message Bubble -->
-                            <div class="message-turn message-student" id="msg-{{ msg.id }}">
-                                <div class="message-body">
-                                    <div class="message-sender-name">{{ user.name }}</div>
-                                    <div class="message-bubble bubble-student">
-                                        <p class="bubble-text">{{ msg.message_text }}</p>
-                                    </div>
-                                    <div class="message-timestamp">{{ msg.created_at or '' }}</div>
-                                </div>
-                                <div class="message-avatar-wrap avatar-student">
-                                    🎓
-                                </div>
+                            <div class="chat-locked-bar">
+                                <span>🔒 Session concluded. Transcript is preserved.</span>
                             </div>
                         {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                <!-- #7 Thinking Filler Cue (shown during API wait) -->
-                <div class="thinking-filler-cue" id="thinking-filler" aria-live="polite">
-                    <span class="filler-avatar" id="filler-avatar-emoji">🤔</span>
-                    <span id="filler-text"></span>
-                </div>
-
-                <!-- Typing / Reasoning Indicator Bubble (Initially hidden) -->
-                <div class="message-turn message-ai typing-wrapper" id="typing-indicator" style="display: none;">
-                    <div class="message-avatar-wrap {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}">
-                        {% if interview_session.interviewer_gender == 'female' %}👩‍💼{% else %}👨‍💼{% endif %}
                     </div>
-                    <div class="message-body">
-                        <div class="message-sender-name">{{ interview_session.interviewer_name }}</div>
-                        <div class="message-bubble bubble-ai bubble-typing">
-                            <span class="typing-dot"></span>
-                            <span class="typing-dot"></span>
-                            <span class="typing-dot"></span>
-                        </div>
-                    </div>
+
                 </div>
 
-                <!-- Error / Retry Banner Container -->
-                <div id="chat-error-banner" class="chat-inline-error" style="display: none;">
-                    <span class="error-icon">⚠️</span>
-                    <span id="error-message-text" class="error-text">Failed to get AI response.</span>
-                    <button type="button" id="btn-retry" class="btn-retry-action">Retry</button>
-                </div>
-
-            </div>
-
-            <!-- Chat Bottom Input Bar -->
-            <div class="chat-input-wrapper">
-                {% if interview_session.status != 'completed' %}
-                    <form id="chat-form" class="chat-form" onsubmit="return false;">
-                        <div class="input-container">
-                            <textarea
-                                id="chat-input"
-                                class="chat-textarea"
-                                placeholder="Type your answer here… (Press Enter to send, Shift+Enter for new line)"
-                                rows="1"
-                                autocomplete="off"
-                                spellcheck="true"
-                                autofocus></textarea>
-                            <button type="button" id="btn-send" class="btn-send-message" aria-label="Send Answer" title="Send answer">
-                                <span class="send-label">Send</span>
-                                <svg class="send-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                                </svg>
+                <!-- TAB 2: Clean Read-Only Transcript Document -->
+                <div class="tab-pane" id="tab-pane-transcript" style="display: none;">
+                    <div class="transcript-document-view" id="transcript-doc-view">
+                        <div class="transcript-doc-header">
+                            <span class="doc-header-tag">Session Transcript</span>
+                            <button type="button" class="btn-copy-transcript" id="btn-copy-transcript" onclick="copyFullTranscript()">
+                                📋 Copy Text
                             </button>
                         </div>
-                    </form>
-                    <div class="chat-input-helper">
-                        <span>Press <kbd>Enter ↵</kbd> to send</span>
-                        <span class="helper-separator">•</span>
-                        <span><kbd>Shift</kbd> + <kbd>Enter</kbd> for line break</span>
-                        <span class="helper-separator">•</span>
-                        <!-- Mic listening badge -->
-                        <span id="mic-listening-badge" role="status" aria-live="polite">
-                            <span class="mic-listening-dot"></span>
-                            Listening…
-                        </span>
+                        <div class="transcript-entries-list" id="transcript-entries-list">
+                            <!-- Populated dynamically via JS -->
+                        </div>
                     </div>
-                {% else %}
-                    <div class="chat-locked-bar">
-                        <span>🔒 This interview session is completed. Message history is preserved in read-only mode.</span>
-                    </div>
-                {% endif %}
+                </div>
+
+            </div>
+        </div>
+
+        <!-- COLUMN 4: Honest Session Stats -->
+        <div class="panel-card panel-stats" id="panel-stats">
+            <div class="panel-card-header">
+                <span class="panel-header-icon">📊</span>
+                <h3 class="panel-header-title">Session Stats</h3>
             </div>
 
-        </section>
+            <div class="panel-card-body">
+                <div class="stat-metrics-grid">
+                    
+                    <!-- Metric 1: Questions Answered -->
+                    <div class="stat-metric-card">
+                        <span class="metric-label">Questions Answered</span>
+                        <div class="metric-value-wrap">
+                            <span class="metric-number font-mono" id="stat-answers-count">0</span>
+                            <span class="metric-unit">turns</span>
+                        </div>
+                    </div>
+
+                    <!-- Metric 2: Average Answer Length -->
+                    <div class="stat-metric-card">
+                        <span class="metric-label">Average Answer Length</span>
+                        <div class="metric-value-wrap">
+                            <span class="metric-number font-mono" id="stat-avg-words">0</span>
+                            <span class="metric-unit">words / ans</span>
+                        </div>
+                    </div>
+
+                    <!-- Metric 3: Current Stage -->
+                    <div class="stat-metric-card">
+                        <span class="metric-label">Active Stage</span>
+                        <div class="metric-value-wrap">
+                            <span class="metric-tag-value" id="stat-active-stage-tag">Stage 1</span>
+                        </div>
+                    </div>
+
+                    <!-- Metric 4: Avg Time Per Question -->
+                    <div class="stat-metric-card">
+                        <span class="metric-label">Avg Response Pace</span>
+                        <div class="metric-value-wrap">
+                            <span class="metric-number font-mono" id="stat-pace-time">--</span>
+                            <span class="metric-unit">sec / turn</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Live Performance Tip -->
+                <div class="stats-coaching-tip">
+                    <span class="tip-sparkle">💡</span>
+                    <p class="tip-sparkle-text">Aim for structured answers with context, actions, and quantifiable impact (STAR technique).</p>
+                </div>
+            </div>
+        </div>
+
     </div>
+
 </div>
 {% endblock %}
 
@@ -374,7 +564,6 @@
 
         if (endBtn) {
             endBtn.disabled = true;
-            endBtn.innerHTML = '<span>⏳</span> Analyzing Performance...';
             endBtn.classList.add('is-loading');
         }
 
@@ -390,6 +579,28 @@
         }
 
         return true;
+    }
+
+    function switchPanelTab(tabName) {
+        const btnConv = document.getElementById('tab-btn-conversation');
+        const btnTran = document.getElementById('tab-btn-transcript');
+        const paneConv = document.getElementById('tab-pane-conversation');
+        const paneTran = document.getElementById('tab-pane-transcript');
+
+        if (tabName === 'conversation') {
+            if (btnConv) btnConv.classList.add('active');
+            if (btnTran) btnTran.classList.remove('active');
+            if (paneConv) paneConv.style.display = 'flex';
+            if (paneTran) paneTran.style.display = 'none';
+        } else {
+            if (btnConv) btnConv.classList.remove('active');
+            if (btnTran) btnTran.classList.add('active');
+            if (paneConv) paneConv.style.display = 'none';
+            if (paneTran) paneTran.style.display = 'flex';
+            if (typeof updateTranscriptDocument === 'function') {
+                updateTranscriptDocument();
+            }
+        }
     }
 </script>
 {% endblock %}

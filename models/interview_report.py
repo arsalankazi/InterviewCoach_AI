@@ -213,6 +213,7 @@ class InterviewReport:
                 'communication_score': row['communication_score'],
                 'overall_score': row['overall_score'],
                 'confidence_level': row['confidence_level'],
+                'analysis_available': bool(row['analysis_available']),
                 'job_role': row['job_role'],
                 'interviewer_name': row['interviewer_name'],
                 'interviewer_gender': row['interviewer_gender'],

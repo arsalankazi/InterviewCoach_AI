@@ -14,29 +14,29 @@
 
     <!-- Summary Metrics -->
     <div class="stats-grid">
-        <div class="stat-card">
+        <div class="stat-card reveal-on-scroll">
             <div class="stat-icon-wrapper stat-icon-blue">
                 <span>🎯</span>
             </div>
             <div class="stat-content">
-                <div class="stat-label">Total Interviews</div>
-                <div class="stat-value">{{ metrics.total_interviews }}</div>
-                <div class="stat-desc">Completed practice sessions</div>
+                <div class="stat-label">Full Interviews</div>
+                <div class="stat-value" data-count-up="{{ metrics.total_interviews }}">{{ metrics.total_interviews }}</div>
+                <div class="stat-desc">Completed full interview sessions</div>
             </div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card reveal-on-scroll">
             <div class="stat-icon-wrapper stat-icon-purple">
                 <span>🏆</span>
             </div>
             <div class="stat-content">
                 <div class="stat-label">Average Score</div>
-                <div class="stat-value">{{ metrics.avg_score }}</div>
+                <div class="stat-value" data-count-up="{{ metrics.avg_score }}">{{ metrics.avg_score }}</div>
                 <div class="stat-desc">Across all question sets</div>
             </div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card reveal-on-scroll">
             <div
                 class="stat-icon-wrapper {% if metrics.has_resume %}stat-icon-green{% else %}stat-icon-amber{% endif %}">
                 <span>📄</span>
@@ -61,165 +61,87 @@
         </div>
     </div>
 
-    <!-- Skills & Focus Areas Grid -->
-    <div class="dashboard-split-grid">
-        <!-- Skills Summary -->
-        <div class="skills-dashboard-card">
-            <div class="skills-dashboard-header">
-                <div class="skills-dashboard-title-row">
-                    <h3 class="skills-dashboard-title">🏷️ My Skills</h3>
-                    <a href="{{ url_for('student.skills_manager') }}" class="skills-manage-link">Manage &rarr;</a>
-                </div>
+    <!-- Skills Summary Section -->
+    <div class="skills-dashboard-card" style="margin-bottom: 2.25rem;">
+        <div class="skills-dashboard-header">
+            <div class="skills-dashboard-title-row">
+                <h3 class="skills-dashboard-title">🏷️ My Skills</h3>
+                <a href="{{ url_for('student.skills_manager') }}" class="skills-manage-link">Manage &rarr;</a>
             </div>
-            {% set skill_list = user.get_skills() %}
-            {% if skill_list %}
-            <div class="skills-tags-wrap skills-tags-dashboard">
-                {% for skill in skill_list[:12] %}
-                <span class="skill-badge">{{ skill }}</span>
-                {% endfor %}
-                {% if skill_list|length > 12 %}
-                <a href="{{ url_for('student.skills_manager') }}" class="skill-badge skill-badge-more">
-                    +{{ skill_list|length - 12 }} more
-                </a>
-                {% endif %}
-            </div>
-            {% else %}
-            <p class="skills-dashboard-empty">
-                No skills detected yet.
-                {% if user.has_resume() %}
-                <a href="{{ url_for('student.skills_manager') }}" class="auth-link">Add manually &rarr;</a>
-                {% else %}
-                <a href="{{ url_for('student.upload_resume') }}" class="auth-link">Upload your resume to auto-detect
-                    &rarr;</a>
-                {% endif %}
-            </p>
+        </div>
+        {% set skill_list = user.get_skills() %}
+        {% if skill_list %}
+        <div class="skills-tags-wrap skills-tags-dashboard">
+            {% for skill in skill_list[:14] %}
+            <span class="skill-badge">{{ skill }}</span>
+            {% endfor %}
+            {% if skill_list|length > 14 %}
+            <a href="{{ url_for('student.skills_manager') }}" class="skill-badge skill-badge-more">
+                +{{ skill_list|length - 14 }} more
+            </a>
             {% endif %}
         </div>
-
-        <!-- Weak Topics Tracker Card -->
-        <div class="weak-topics-card">
-            <div class="weak-topics-header">
-                <div class="weak-topics-title-row">
-                    <div class="weak-topics-title-wrap">
-                        <span class="weak-topics-icon">📚</span>
-                        <div>
-                            <h3 class="weak-topics-title">Weak Topics to Improve</h3>
-                            <p class="weak-topics-subtitle">Targeted areas where questions scored below 70%</p>
-                        </div>
-                    </div>
-                    {% if weak_topics and weak_topics|length > 0 %}
-                    <a href="{{ url_for('student.interview_history') }}" class="weak-topics-link">History &rarr;</a>
-                    {% endif %}
-                </div>
-            </div>
-
-            {% if weak_topics and weak_topics|length > 0 %}
-            <div class="weak-topics-list">
-                {% for topic_name, topic_data in weak_topics.items() %}
-                {% if loop.index <= 5 %}
-                <div class="weak-topic-tile" data-topic-id="{{ loop.index }}">
-                    <div class="weak-topic-summary-row">
-                        <div class="weak-topic-left">
-                            <div class="weak-topic-title-line">
-                                <span class="weak-topic-name">{{ topic_name }}</span>
-                                <span class="weak-topic-count-badge">
-                                    Missed {{ topic_data.count }} time{% if topic_data.count != 1 %}s{% endif %}
-                                </span>
-                            </div>
-                            <div class="weak-topic-bar-wrap">
-                                <div class="weak-topic-bar-track">
-                                    <div class="weak-topic-bar-fill {% if topic_data.avg_score < 50 %}fill-low{% else %}fill-mid{% endif %}" style="width: {{ topic_data.avg_score }}%;"></div>
-                                </div>
-                                <span class="weak-topic-bar-label {% if topic_data.avg_score < 50 %}score-text-low{% else %}score-text-mid{% endif %}">
-                                    Avg {{ topic_data.avg_score }}%
-                                </span>
-                            </div>
-                        </div>
-                        <div class="weak-topic-right">
-                            <button type="button" class="btn btn-sm btn-outline weak-topic-toggle-btn" aria-expanded="false" title="Inspect missed questions">
-                                <span class="toggle-text">View Questions</span>
-                                <span class="toggle-icon">▾</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Collapsible Question Drilldown -->
-                    <div class="weak-topic-details" style="display: none;">
-                        <div class="weak-topic-questions-list">
-                            {% for q in topic_data.questions %}
-                            <div class="weak-q-box">
-                                <div class="weak-q-header">
-                                    <span class="weak-q-label">Session #{{ q.session_id }} ({{ q.job_role }}) &bull; {{ q.date }}</span>
-                                    <span class="weak-q-score-tag {% if q.score < 50 %}tag-low{% else %}tag-mid{% endif %}">{{ q.score }}/100</span>
-                                </div>
-                                <div class="weak-q-text">
-                                    <strong>Question:</strong> {{ q.question_text }}
-                                </div>
-                                {% if q.student_answer %}
-                                <div class="weak-q-answer">
-                                    <span class="sub-label">Your Response:</span> {{ q.student_answer }}
-                                </div>
-                                {% endif %}
-                                {% if q.ideal_answer %}
-                                <div class="weak-q-ideal">
-                                    <span class="sub-label">Model Benchmark:</span> {{ q.ideal_answer }}
-                                </div>
-                                {% endif %}
-                                {% if q.feedback_text %}
-                                <div class="weak-q-critique">
-                                    <span class="sub-label">💡 Coach Critique:</span> {{ q.feedback_text }}
-                                </div>
-                                {% endif %}
-                                <div class="weak-q-link-row">
-                                    <a href="{{ url_for('student.interview_results', session_id=q.session_id) }}" class="weak-q-results-link">
-                                        View Full Report &rarr;
-                                    </a>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-                {% endfor %}
-            </div>
+        {% else %}
+        <p class="skills-dashboard-empty">
+            No skills detected yet.
+            {% if user.has_resume() %}
+            <a href="{{ url_for('student.skills_manager') }}" class="auth-link">Add manually &rarr;</a>
             {% else %}
-            <!-- Styled Empty State Card -->
-            <div class="weak-topics-empty-card">
-                <div class="empty-icon-wrap-sm">
-                    <span class="empty-badge-icon">🏆</span>
-                </div>
-                <h4 class="empty-card-heading">No Weak Topics Yet</h4>
-                <p class="empty-card-subtext">
-                    You haven't recorded any weak areas. Practice role-specific mock interviews to evaluate your technical skills and identify topics for focused improvement.
-                </p>
-                <a href="{{ url_for('student.interview_setup') }}" class="btn btn-primary btn-sm empty-cta-btn">
-                    <span>⚡</span> Start New Interview
-                </a>
-            </div>
+            <a href="{{ url_for('student.upload_resume') }}" class="auth-link">Upload your resume to auto-detect
+                &rarr;</a>
             {% endif %}
-        </div>
+        </p>
+        {% endif %}
     </div>
 
-    <!-- Quick Actions -->
     <div class="section-header">
-        <h2 class="section-title">Quick Actions</h2>
+        <h2 class="section-title">Quick Actions &amp; Intelligence</h2>
         <p class="section-subtitle">Choose an action to continue your interview training</p>
     </div>
 
     <div class="action-grid">
-        <!-- Start New Interview -->
-        <a href="{{ url_for('student.interview_setup') }}" class="action-card action-card-featured">
+        <!-- 1. Start New Interview -->
+        <a href="{{ url_for('student.interview_setup') }}" class="action-card action-card-featured reveal-on-scroll" id="tour-card-interview">
             <div class="action-badge">AI Powered</div>
             <div class="action-icon">🚀</div>
-            <h3 class="action-title">Start New Interview</h3>
-            <p class="action-desc">Launch an interactive AI mock interview tailored to your target industry and job
-                role.</p>
+            <h3 class="action-title">Start Full Interview</h3>
+            <p class="action-desc">Launch an interactive 4-stage AI mock interview tailored to your target role and skill stack.</p>
             <div class="action-link-text">Begin Session &rarr;</div>
         </a>
 
-        <!-- Upload Resume -->
-        <a href="{{ url_for('student.upload_resume') }}" class="action-card">
+        <!-- 2. Quick Practice -->
+        <a href="{{ url_for('student.practice_setup') }}" class="action-card action-card-practice reveal-on-scroll" id="tour-card-practice">
+            <div class="action-badge action-badge-practice">⚡ Quick &amp; Focused</div>
+            <div class="action-icon">🎯</div>
+            <h3 class="action-title">Quick Practice</h3>
+            <p class="action-desc">Pick one topic or skill and drill focused questions for ~5 minutes. No setup — straight to questions.</p>
+            <div class="action-link-text">Start Drill &rarr;</div>
+        </a>
+
+        <!-- 3. Weak Topics Card -->
+        <a href="{{ url_for('student.interview_history') }}" class="action-card action-card-weak-topics reveal-on-scroll" id="tour-card-weak-topics">
+            {% if weak_topics and weak_topics|length > 0 %}
+            <div class="action-badge action-badge-warning">{{ weak_topics|length }} Weak Topic{% if weak_topics|length != 1 %}s{% endif %}</div>
+            {% else %}
+            <div class="action-badge action-badge-muted">None Tracked</div>
+            {% endif %}
+            <div class="action-icon">🧠</div>
+            <h3 class="action-title">Weak Topics</h3>
+            <p class="action-desc">Review questions and concepts scored under 70% across your full mock sessions to target specific skill gaps.</p>
+            <div class="action-link-text">View Weak Topics &rarr;</div>
+        </a>
+
+        <!-- 4. How the AI Works Card -->
+        <a href="{{ url_for('student.how_it_works') }}" class="action-card action-card-ai-logic reveal-on-scroll" id="hiw-action-card">
+            <div class="action-badge action-badge-info">Architecture</div>
+            <div class="action-icon">⚙️</div>
+            <h3 class="action-title">How the AI Works</h3>
+            <p class="action-desc">Explore the transparent 4-stage pipeline, multi-turn memory engine, and objective scoring rubric that powers our AI.</p>
+            <div class="action-link-text">Learn More →</div>
+        </a>
+
+        <!-- 5. Upload / Manage Resume -->
+        <a href="{{ url_for('student.upload_resume') }}" class="action-card reveal-on-scroll" id="tour-card-resume">
             <div class="action-icon">📤</div>
             <h3 class="action-title">
                 {% if metrics.has_resume %}Manage Resume{% else %}Upload Resume{% endif %}
@@ -236,8 +158,8 @@
             </div>
         </a>
 
-        <!-- Interview History -->
-        <a href="{{ url_for('student.interview_history') }}" class="action-card">
+        <!-- 6. Interview History -->
+        <a href="{{ url_for('student.interview_history') }}" class="action-card reveal-on-scroll" id="tour-card-history">
             <div class="action-icon">📊</div>
             <h3 class="action-title">Interview History</h3>
             <p class="action-desc">Review your past answers, performance analytics, and actionable AI feedback
@@ -245,65 +167,103 @@
             <div class="action-link-text">View History &rarr;</div>
         </a>
 
-        <!-- My Skills -->
-        <a href="{{ url_for('student.skills_manager') }}" class="action-card">
+        <!-- 7. My Skills Manager -->
+        <a href="{{ url_for('student.skills_manager') }}" class="action-card reveal-on-scroll">
             <div class="action-icon">🏷️</div>
-            <h3 class="action-title">My Skills</h3>
+            <h3 class="action-title">Skills Library</h3>
             <p class="action-desc">View, add, or remove the skills detected from your resume that personalise your
                 interview questions.</p>
             <div class="action-link-text">Manage Skills &rarr;</div>
         </a>
 
-        <!-- My Profile -->
-        <a href="{{ url_for('student.profile') }}" class="action-card">
+        <!-- 8. My Profile -->
+        <a href="{{ url_for('student.profile') }}" class="action-card reveal-on-scroll">
             <div class="action-icon">👤</div>
             <h3 class="action-title">My Profile</h3>
             <p class="action-desc">View and manage your student account credentials and profile settings.</p>
             <div class="action-link-text">Manage Profile &rarr;</div>
         </a>
+    </div><!-- end action-grid -->
+
+    <!-- Decorative Floating AI Robot Mascot -->
+    <div class="dashboard-mascot" id="dashboard-mascot" role="button" tabindex="0" title="AI Coach Assistant - Click to start Dashboard Tour">
+        <div class="mascot-speech-bubble">
+            <span class="bubble-icon">💡</span>
+            <span class="bubble-text">Need help? Click me to tour the dashboard!</span>
+        </div>
+        <div class="mascot-avatar-wrap">
+            <svg class="mascot-robot-svg" id="mascot-robot-svg" viewBox="0 0 64 64" width="60" height="60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="mascotBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#312e81" />
+                        <stop offset="50%" stop-color="#1e1b4b" />
+                        <stop offset="100%" stop-color="#0f172a" />
+                    </linearGradient>
+                    <linearGradient id="mascotVisorGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#090d16" />
+                        <stop offset="100%" stop-color="#030712" />
+                    </linearGradient>
+                    <linearGradient id="mascotEyeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#38bdf8" />
+                        <stop offset="100%" stop-color="#818cf8" />
+                    </linearGradient>
+                    <filter id="eyeGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="1" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                </defs>
+
+                <!-- Floating Shadow / Thruster Ring -->
+                <ellipse cx="32" cy="58" rx="14" ry="3.5" fill="rgba(99, 102, 241, 0.25)" />
+                <ellipse cx="32" cy="58" rx="8" ry="2" fill="rgba(56, 189, 248, 0.4)" />
+
+                <!-- Antenna Rod & Sphere -->
+                <line x1="32" y1="6" x2="32" y2="13" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round" />
+                <circle cx="32" cy="5" r="3.5" fill="#38bdf8" filter="url(#eyeGlow)" />
+
+                <!-- Robot Head / Outer Shell -->
+                <rect x="12" y="13" width="40" height="30" rx="9" fill="url(#mascotBodyGrad)" stroke="#6366f1" stroke-width="1.8" />
+
+                <!-- Ear Bolts -->
+                <rect x="7" y="22" width="5" height="12" rx="2.5" fill="#4f46e5" stroke="#818cf8" stroke-width="1" />
+                <rect x="52" y="22" width="5" height="12" rx="2.5" fill="#4f46e5" stroke="#818cf8" stroke-width="1" />
+
+                <!-- Dark Visor Screen -->
+                <rect x="17" y="18" width="30" height="18" rx="5" fill="url(#mascotVisorGrad)" stroke="rgba(99, 102, 241, 0.4)" stroke-width="1" />
+
+                <!-- Left Eye Glow -->
+                <circle cx="25" cy="27" r="4.5" fill="url(#mascotEyeGrad)" filter="url(#eyeGlow)" />
+                <circle cx="26.2" cy="25.8" r="1.5" fill="#ffffff" />
+                <rect class="mascot-eye-lid" x="20" y="22" width="10" height="9" rx="2" fill="#030712" style="opacity:0; transform-origin: 25px 27px; transition: transform 0.08s ease, opacity 0.08s ease;" />
+
+                <!-- Right Eye Glow -->
+                <circle cx="39" cy="27" r="4.5" fill="url(#mascotEyeGrad)" filter="url(#eyeGlow)" />
+                <circle cx="40.2" cy="25.8" r="1.5" fill="#ffffff" />
+                <rect class="mascot-eye-lid" x="34" y="22" width="10" height="9" rx="2" fill="#030712" style="opacity:0; transform-origin: 39px 27px; transition: transform 0.08s ease, opacity 0.08s ease;" />
+
+            </svg>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/mascot.js') }}"></script>
+<script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
+{% if show_tour %}
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    // Interactive expand/collapse for weak topic drilldown questions
-    const toggleButtons = document.querySelectorAll('.weak-topic-toggle-btn');
-    toggleButtons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const tile = btn.closest('.weak-topic-tile');
-            const details = tile.querySelector('.weak-topic-details');
-            const isExpanded = btn.getAttribute('aria-expanded') === 'true';
-            const toggleText = btn.querySelector('.toggle-text');
-            const toggleIcon = btn.querySelector('.toggle-icon');
-
-            if (isExpanded) {
-                details.style.display = 'none';
-                btn.setAttribute('aria-expanded', 'false');
-                tile.classList.remove('is-open');
-                if (toggleText) toggleText.textContent = 'View Questions';
-                if (toggleIcon) toggleIcon.textContent = '▾';
-            } else {
-                details.style.display = 'block';
-                btn.setAttribute('aria-expanded', 'true');
-                tile.classList.add('is-open');
-                if (toggleText) toggleText.textContent = 'Hide Questions';
-                if (toggleIcon) toggleIcon.textContent = '▴';
-            }
-        });
-    });
-
-    // Also clicking anywhere on the summary row toggles the item
-    const summaryRows = document.querySelectorAll('.weak-topic-summary-row');
-    summaryRows.forEach(row => {
-        row.addEventListener('click', (e) => {
-            if (e.target.closest('.weak-topic-toggle-btn')) return;
-            const btn = row.querySelector('.weak-topic-toggle-btn');
-            if (btn) btn.click();
-        });
-    });
-});
+(function() {
+    function launchTour() {
+        if (typeof window.startOnboardingTour === 'function') {
+            window.startOnboardingTour();
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => setTimeout(launchTour, 300));
+    } else {
+        setTimeout(launchTour, 300);
+    }
+})();
 </script>
+{% endif %}
 {% endblock %}

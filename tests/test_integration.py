@@ -220,6 +220,44 @@ class TestStudentPages(BaseTestCase):
         resp = self.client.get("/student/dashboard")
         self.assertEqual(resp.status_code, 200)
 
+    def test_dashboard_first_login_shows_tour_and_complete_api(self):
+        # Freshly logged in user should have onboarding tour triggered
+        resp = self.client.get("/student/dashboard")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"startOnboardingTour", resp.data)
+
+        # Complete onboarding via API
+        post_resp = self.client.post("/student/complete-onboarding")
+        self.assertEqual(post_resp.status_code, 200)
+        data = json.loads(post_resp.data)
+        self.assertTrue(data.get("success"))
+
+        # Subsequent dashboard visit should NOT have auto-trigger script
+        resp_after = self.client.get("/student/dashboard")
+        self.assertEqual(resp_after.status_code, 200)
+        self.assertNotIn(b"startOnboardingTour", resp_after.data)
+
+    def test_user_model_mark_and_reset_onboarding(self):
+        from models.user import User
+        with self.app.app_context():
+            user = User.get_by_email(SAMPLE_STUDENT["email"])
+            self.assertIsNotNone(user)
+            
+            # Test mark complete
+            User.mark_onboarding_complete(user.id)
+            refreshed = User.get_by_id(user.id)
+            self.assertEqual(refreshed.onboarding_completed, 1)
+
+            # Test reset
+            User.reset_onboarding(user.id)
+            refreshed2 = User.get_by_id(user.id)
+            self.assertEqual(refreshed2.onboarding_completed, 0)
+
+    def test_how_it_works_page_loads(self):
+        resp = self.client.get("/student/how-it-works")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"How the AI Works", resp.data)
+
     def test_profile_page_loads(self):
         resp = self.client.get("/student/profile")
         self.assertEqual(resp.status_code, 200)
@@ -580,6 +618,7 @@ class TestRouteIntegrity(BaseTestCase):
             "/student/dashboard", "/student/profile", "/student/resume/upload",
             "/student/resume/view", "/student/skills",
             "/student/interviews/new", "/student/interviews/history",
+            "/student/practice/new",
         ]
         for url in routes:
             resp = self.client.get(url)
@@ -591,6 +630,198 @@ class TestRouteIntegrity(BaseTestCase):
             resp = self.client.get(url)
             self.assertIn(resp.status_code, [302, 401],
                           f"Admin route {url} returned {resp.status_code}")
+
+
+# ===========================================================================
+# 8. PRACTICE MODE (QUICK PRACTICE & DATA SEPARATION)
+# ===========================================================================
+
+class TestPracticeMode(BaseTestCase):
+
+    def setUp(self):
+        super().setUp()
+        register_and_login(self.client)
+
+    def _extract_session_id(self, location):
+        parts = location.rstrip("/").split("/")
+        for p in parts:
+            if p.isdigit():
+                return int(p)
+        return None
+
+    def test_practice_setup_get_renders(self):
+        resp = self.client.get("/student/practice/new")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"Quick Practice Mode", resp.data)
+
+    def test_practice_setup_missing_topic_returns_422(self):
+        resp = self.client.post("/student/practice/new", data={"topic": ""})
+        self.assertEqual(resp.status_code, 422)
+
+    def test_practice_setup_custom_topic_creates_session(self):
+        resp = self.client.post(
+            "/student/practice/new",
+            data={"topic": "__custom__", "custom_topic": "Docker Containerization"},
+            follow_redirects=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        location = resp.headers.get("Location", "")
+        self.assertIn("/practice/", location)
+        self.assertIn("/room", location)
+
+        session_id = self._extract_session_id(location)
+        self.assertIsNotNone(session_id)
+
+        # Verify session model row has session_type='practice'
+        with self.app.app_context():
+            from models.interview_session import InterviewSession
+            sess = InterviewSession.get_by_id(session_id)
+            self.assertIsNotNone(sess)
+            self.assertEqual(sess.session_type, "practice")
+            self.assertEqual(sess.job_role, "Docker Containerization")
+
+    def test_practice_room_loads(self):
+        # Create session
+        resp = self.client.post(
+            "/student/practice/new",
+            data={"topic": "__custom__", "custom_topic": "GraphQL APIs"},
+            follow_redirects=False,
+        )
+        session_id = self._extract_session_id(resp.headers.get("Location", ""))
+
+        resp = self.client.get(f"/student/practice/{session_id}/room")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"GraphQL APIs", resp.data)
+        self.assertIn(b"Practice Mode", resp.data)
+
+    def test_practice_chat_api_dispatches_question(self):
+        # Create session
+        resp = self.client.post(
+            "/student/practice/new",
+            data={"topic": "__custom__", "custom_topic": "System Design"},
+            follow_redirects=False,
+        )
+        session_id = self._extract_session_id(resp.headers.get("Location", ""))
+
+        # Begin / 1st turn
+        resp = self.client.post(
+            f"/student/practice/{session_id}/chat",
+            json={"answer": ""},
+        )
+        self.assertIn(resp.status_code, [200, 500])
+        data = json.loads(resp.data)
+        self.assertIn("ai_message", data)
+        self.assertEqual(data.get("session_type"), "practice")
+
+        # Answer question
+        resp = self.client.post(
+            f"/student/practice/{session_id}/chat",
+            json={"answer": "I use caching with Redis and database sharding."},
+        )
+        self.assertIn(resp.status_code, [200, 500])
+        data = json.loads(resp.data)
+        self.assertIn("ai_message", data)
+
+    def test_practice_chat_wrong_session_type_returns_400(self):
+        # Create full interview session
+        resp = self.client.post(
+            "/student/interviews/new",
+            data={"interviewer_gender": "male", "interviewer_name": "Alex", "job_role": "Software Engineer"},
+            follow_redirects=False,
+        )
+        session_id = self._extract_session_id(resp.headers.get("Location", ""))
+
+        # Trying to chat via practice endpoint with a full interview session should return 400
+        resp = self.client.post(f"/student/practice/{session_id}/chat", json={"answer": "Hello"})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_practice_end_lifecycle(self):
+        # Create and chat
+        resp = self.client.post(
+            "/student/practice/new",
+            data={"topic": "__custom__", "custom_topic": "Python Asyncio"},
+            follow_redirects=False,
+        )
+        session_id = self._extract_session_id(resp.headers.get("Location", ""))
+
+        self.client.post(
+            f"/student/practice/{session_id}/chat",
+            json={"answer": "Asyncio is used for cooperative multitasking."},
+        )
+
+        # End practice
+        resp = self.client.post(f"/student/practice/{session_id}/end", follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+
+        # Verify status is completed
+        with self.app.app_context():
+            from models.interview_session import InterviewSession
+            sess = InterviewSession.get_by_id(session_id)
+            self.assertEqual(sess.status, "completed")
+
+    def test_dashboard_stats_and_history_separate_practice_from_full_interviews(self):
+        # 1. Create a full interview
+        self.client.post(
+            "/student/interviews/new",
+            data={"interviewer_gender": "female", "interviewer_name": "Sarah", "job_role": "Data Scientist"},
+            follow_redirects=True,
+        )
+
+        # 2. Create 2 practice sessions
+        self.client.post(
+            "/student/practice/new",
+            data={"topic": "__custom__", "custom_topic": "Kubernetes"},
+            follow_redirects=True,
+        )
+        self.client.post(
+            "/student/practice/new",
+            data={"topic": "__custom__", "custom_topic": "PostgreSQL"},
+            follow_redirects=True,
+        )
+
+        # Dashboard should count only 1 full interview in "Full Interviews" metric
+        resp = self.client.get("/student/dashboard")
+        self.assertEqual(resp.status_code, 200)
+        # Verify the context metrics
+        self.assertIn(b"Full Interviews", resp.data)
+
+        # History Page - full interviews tab
+        resp_full = self.client.get("/student/interviews/history?tab=full")
+        self.assertEqual(resp_full.status_code, 200)
+        self.assertIn(b"Data Scientist", resp_full.data)
+        self.assertNotIn(b"Kubernetes", resp_full.data)
+
+        # History Page - practice sessions tab
+        resp_practice = self.client.get("/student/interviews/history?tab=practice")
+        self.assertEqual(resp_practice.status_code, 200)
+        self.assertIn(b"Kubernetes", resp_practice.data)
+        self.assertIn(b"PostgreSQL", resp_practice.data)
+        self.assertNotIn(b"Data Scientist", resp_practice.data)
+
+    def test_cross_user_practice_access_blocked(self):
+        # Student A creates practice session
+        student_a = {**SAMPLE_STUDENT, "email": "sa_prac@test.com"}
+        register_and_login(self.client, student_a)
+        resp = self.client.post(
+            "/student/practice/new",
+            data={"topic": "__custom__", "custom_topic": "Security"},
+            follow_redirects=False,
+        )
+        session_id = self._extract_session_id(resp.headers.get("Location", ""))
+
+        # Student B logs in
+        self.client.get("/auth/logout")
+        student_b = {**SAMPLE_STUDENT, "email": "sb_prac@test.com"}
+        register_and_login(self.client, student_b)
+
+        # Access room -> blocked / redirected
+        resp = self.client.get(f"/student/practice/{session_id}/room", follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"dashboard", resp.data.lower())
+
+        # Chat API -> 403
+        resp = self.client.post(f"/student/practice/{session_id}/chat", json={"answer": "test"})
+        self.assertEqual(resp.status_code, 403)
 
 
 # ===========================================================================
@@ -608,6 +839,7 @@ if __name__ == "__main__":
         TestAuthorizationChecks,
         TestAdminFlow,
         TestRouteIntegrity,
+        TestPracticeMode,
     ]:
         suite.addTests(loader.loadTestsFromTestCase(cls))
 

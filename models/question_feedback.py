@@ -158,10 +158,17 @@ class QuestionFeedback:
         return [cls._from_row(row) for row in rows]
 
     @classmethod
-    def get_weak_topics_by_user(cls, user_id: int, score_threshold: int = 70) -> dict:
+    def get_weak_topics_by_user(cls, user_id: int, score_threshold: int = 70,
+                                 session_type: str = 'full_interview') -> dict:
         """
-        Retrieve and aggregate weak topics across all past interviews for a user
+        Retrieve and aggregate weak topics across past interviews for a user
         where individual question score is below score_threshold (default < 70).
+
+        Args:
+            user_id:         Student user ID.
+            score_threshold: Questions below this score are considered weak (default 70).
+            session_type:    Filter by session type: 'full_interview' (default) or 'practice'.
+                             Pass None to aggregate across all session types.
 
         Returns:
             Dict mapping topic_name -> {
@@ -178,27 +185,51 @@ class QuestionFeedback:
 
         db = get_db()
         cursor = db.cursor()
-        cursor.execute(
-            """
-            SELECT 
-                q.id,
-                q.session_id,
-                q.question_text,
-                q.student_answer,
-                q.ideal_answer,
-                q.feedback_text,
-                q.topic,
-                q.score,
-                q.created_at AS feedback_created_at,
-                s.job_role,
-                s.created_at AS session_created_at
-            FROM question_feedback q
-            JOIN interview_sessions s ON q.session_id = s.id
-            WHERE s.user_id = ? AND q.score < ?
-            ORDER BY q.created_at DESC, q.id DESC;
-            """,
-            (user_id, score_threshold)
-        )
+
+        if session_type:
+            cursor.execute(
+                """
+                SELECT
+                    q.id,
+                    q.session_id,
+                    q.question_text,
+                    q.student_answer,
+                    q.ideal_answer,
+                    q.feedback_text,
+                    q.topic,
+                    q.score,
+                    q.created_at AS feedback_created_at,
+                    s.job_role,
+                    s.created_at AS session_created_at
+                FROM question_feedback q
+                JOIN interview_sessions s ON q.session_id = s.id
+                WHERE s.user_id = ? AND q.score < ? AND s.session_type = ?
+                ORDER BY q.created_at DESC, q.id DESC;
+                """,
+                (user_id, score_threshold, session_type)
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT
+                    q.id,
+                    q.session_id,
+                    q.question_text,
+                    q.student_answer,
+                    q.ideal_answer,
+                    q.feedback_text,
+                    q.topic,
+                    q.score,
+                    q.created_at AS feedback_created_at,
+                    s.job_role,
+                    s.created_at AS session_created_at
+                FROM question_feedback q
+                JOIN interview_sessions s ON q.session_id = s.id
+                WHERE s.user_id = ? AND q.score < ?
+                ORDER BY q.created_at DESC, q.id DESC;
+                """,
+                (user_id, score_threshold)
+            )
         rows = cursor.fetchall()
 
         weak_topics = {}
@@ -248,6 +279,16 @@ class QuestionFeedback:
             )
         )
         return sorted_topics
+
+    @classmethod
+    def get_practice_weak_topics_by_user(cls, user_id: int, score_threshold: int = 70) -> dict:
+        """
+        Convenience wrapper: returns weak topics from practice sessions only.
+        Used for the Practice Sessions tab on the History page.
+        """
+        return cls.get_weak_topics_by_user(
+            user_id, score_threshold=score_threshold, session_type='practice'
+        )
 
     # ------------------------------------------------------------------
     # Internal helpers

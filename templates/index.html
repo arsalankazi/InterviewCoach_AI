@@ -1,94 +1,232 @@
 {% extends "base.html" %}
 
-{% block title %}InterviewCoach AI — AI-Powered Mock Interview Platform{% endblock %}
+{% block title %}InterviewCoach AI — Master Your Technical &amp; Behavioral Interviews{% endblock %}
 
 {% block content %}
-<section class="hero-section">
-    <div class="hero-badge">🤖 Powered by Gemini AI</div>
-    <h1 class="hero-title">Ace Your Next Interview</h1>
-    <p class="hero-subtitle">
-        Practice with a hyper-realistic AI interviewer tailored to your job role and resume.
-        Get scored, receive detailed feedback, and track your progress over time.
-    </p>
-    <div class="hero-cta-group">
-        <a href="{{ url_for('auth.register') }}" class="btn btn-hero-primary">Get Started Free</a>
-        <a href="{{ url_for('auth.login') }}" class="btn btn-hero-outline">Sign In</a>
-    </div>
-</section>
+<div class="landing-page-wrapper">
 
-<div class="grid-cards">
-    <div class="card">
-        <div class="card-icon">🎤</div>
-        <h2 class="card-title">Live AI Interview</h2>
-        <p class="card-text">
-            Chat or speak to a fully voiced AI interviewer in a realistic 4-stage format — greeting,
-            introduction, technical deep-dive, and adaptive follow-ups.
+    <!-- =========================================================
+         1. HERO SECTION
+         ========================================================= -->
+    <section class="landing-hero">
+        <div class="landing-badge-group">
+            <span class="landing-badge-pill badge-ai">
+                <span class="badge-dot"></span>
+                <span>Powered by Gemini AI</span>
+            </span>
+            <span class="landing-badge-pill badge-creator">
+                <span>Made by Arsalan Kazi</span>
+            </span>
+        </div>
+
+        <h1 class="landing-hero-title">
+            Master Every Interview with <span class="gradient-text">InterviewCoach AI</span>
+        </h1>
+
+        <p class="landing-hero-subtitle">
+            Practice realistic, multi-stage mock interviews tailored to your exact target role and resume background. 
+            Engage with speech-enabled AI interviewers and receive actionable scorecards to accelerate your career.
         </p>
-        <ul class="module-list">
-            <li class="module-item">
-                <span>4-Stage Interview Flow</span>
-                <span class="module-tag tag-ready">Active</span>
-            </li>
-            <li class="module-item">
-                <span>Voice Input &amp; TTS Output</span>
-                <span class="module-tag tag-ready">Active</span>
-            </li>
-            <li class="module-item">
-                <span>25+ Job Roles</span>
-                <span class="module-tag tag-ready">Active</span>
-            </li>
-        </ul>
-    </div>
 
-    <div class="card">
-        <div class="card-icon">📊</div>
-        <h2 class="card-title">Detailed Analysis</h2>
-        <p class="card-text">
-            After each session, receive a comprehensive AI-scored report with technical score,
-            communication score, confidence level, strengths, and weaknesses.
-        </p>
-        <ul class="module-list">
-            <li class="module-item">
-                <span>Technical &amp; Communication Scores</span>
-                <span class="module-tag tag-ready">Active</span>
-            </li>
-            <li class="module-item">
-                <span>Question-by-Question Feedback</span>
-                <span class="module-tag tag-ready">Active</span>
-            </li>
-            <li class="module-item">
-                <span>Progress Trend Charts</span>
-                <span class="module-tag tag-ready">Active</span>
-            </li>
-        </ul>
-    </div>
+        <div class="landing-hero-cta">
+            <a href="{{ url_for('auth.register') }}" class="btn-landing-primary">
+                <span>Get Started Free</span>
+                <svg class="btn-arrow" viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+                    <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </a>
+            <a href="{{ url_for('auth.login') }}" class="btn-landing-outline">
+                <span>Sign In to Dashboard</span>
+            </a>
+        </div>
 
-    <div class="card">
-        <div class="card-icon">🎯</div>
-        <h2 class="card-title">Smart Personalization</h2>
-        <p class="card-text">
-            Upload your resume and our AI automatically extracts your skills, then tailors
-            every interview question to your real background and target role.
-        </p>
-        <ul class="module-list">
-            <li class="module-item">
-                <span>PDF Resume Parsing</span>
-                <span class="module-tag tag-ready">Active</span>
-            </li>
-            <li class="module-item">
-                <span>Skill Auto-Extraction</span>
-                <span class="module-tag tag-ready">Active</span>
-            </li>
-            <li class="module-item">
-                <span>Weak Topic Tracking</span>
-                <span class="module-tag tag-ready">Active</span>
-            </li>
-        </ul>
-    </div>
-</div>
+        <!-- Trust / Feature Capability Metrics Strip -->
+        <div class="landing-metrics-strip reveal-on-scroll">
+            <div class="metric-strip-item">
+                <span class="strip-icon">🎯</span>
+                <div class="strip-text">
+                    <strong>25+ Tech Roles</strong>
+                    <span>Tailored job competencies</span>
+                </div>
+            </div>
+            <div class="metric-strip-item">
+                <span class="strip-icon">🎙️</span>
+                <div class="strip-text">
+                    <strong>Real-Time Voice</strong>
+                    <span>Speech I/O &amp; lip-sync avatar</span>
+                </div>
+            </div>
+            <div class="metric-strip-item">
+                <span class="strip-icon">📄</span>
+                <div class="strip-text">
+                    <strong>Resume-Driven</strong>
+                    <span>Automated skill extraction</span>
+                </div>
+            </div>
+            <div class="metric-strip-item">
+                <span class="strip-icon">📊</span>
+                <div class="strip-text">
+                    <strong>Deep Analytics</strong>
+                    <span>Scorecards &amp; trend tracking</span>
+                </div>
+            </div>
+        </div>
+    </section>
 
-<div class="hero-bottom-cta">
-    <p>Ready to level up your interview game?</p>
-    <a href="{{ url_for('auth.register') }}" class="btn btn-hero-primary">Create Free Account</a>
+    <!-- =========================================================
+         2. CORE CAPABILITIES (4 FEATURE CARDS)
+         ========================================================= -->
+    <section class="landing-section reveal-on-scroll">
+        <div class="section-heading-center">
+            <span class="section-tag">Core Capabilities</span>
+            <h2 class="section-title-lg">Engineered for Serious Interview Preparation</h2>
+            <p class="section-desc-center">
+                A purpose-built training system that simulates authentic hiring bar evaluations without generic question scripts.
+            </p>
+        </div>
+
+        <div class="landing-feature-grid">
+            
+            <!-- Card 1: Live Multi-Stage Interviews -->
+            <div class="feature-card reveal-on-scroll">
+                <div class="feature-card-header">
+                    <div class="feature-icon-wrap icon-blue">🎙️</div>
+                    <span class="feature-status-pill">Interactive</span>
+                </div>
+                <h3 class="feature-title">Multi-Stage Adaptive Interviews</h3>
+                <p class="feature-desc">
+                    Engage in a structured 4-stage interview progression: greeting, background exploration, 
+                    deep technical problem solving, and behavioral inquiry with dynamic follow-ups.
+                </p>
+                <div class="feature-perks-list">
+                    <div class="perk-item">✓ Web Speech voice input &amp; speech synthesis</div>
+                    <div class="perk-item">✓ Photo-based avatar with real-time lip sync</div>
+                    <div class="perk-item">✓ Dual video call layout with student webcam</div>
+                </div>
+            </div>
+
+            <!-- Card 2: Resume-Based Personalization -->
+            <div class="feature-card reveal-on-scroll">
+                <div class="feature-card-header">
+                    <div class="feature-icon-wrap icon-indigo">📄</div>
+                    <span class="feature-status-pill">Personalized</span>
+                </div>
+                <h3 class="feature-title">Resume-Driven Question Generation</h3>
+                <p class="feature-desc">
+                    Upload your PDF resume to automatically extract your skills, frameworks, and past project experience. 
+                    The AI generates targeted scenario questions tailored to your actual background.
+                </p>
+                <div class="feature-perks-list">
+                    <div class="perk-item">✓ Automated PDF resume skill extraction</div>
+                    <div class="perk-item">✓ Role-aligned contextual technical challenges</div>
+                    <div class="perk-item">✓ Custom skill library &amp; background matching</div>
+                </div>
+            </div>
+
+            <!-- Card 3: Instant Scorecards & Feedback -->
+            <div class="feature-card reveal-on-scroll">
+                <div class="feature-card-header">
+                    <div class="feature-icon-wrap icon-emerald">📊</div>
+                    <span class="feature-status-pill">Comprehensive</span>
+                </div>
+                <h3 class="feature-title">Detailed Performance Scorecards</h3>
+                <p class="feature-desc">
+                    Receive an immediate, comprehensive evaluation at session completion. Review your Technical Accuracy score, 
+                    Communication Clarity score, and question-by-question critique.
+                </p>
+                <div class="feature-perks-list">
+                    <div class="perk-item">✓ Technical &amp; communication score breakdown</div>
+                    <div class="perk-item">✓ Question-level strengths &amp; improvement tips</div>
+                    <div class="perk-item">✓ Star-method communication recommendations</div>
+                </div>
+            </div>
+
+            <!-- Card 4: Skill Gap Tracking & Analytics -->
+            <div class="feature-card reveal-on-scroll">
+                <div class="feature-card-header">
+                    <div class="feature-icon-wrap icon-amber">📈</div>
+                    <span class="feature-status-pill">Progressive</span>
+                </div>
+                <h3 class="feature-title">Skill Gap &amp; Weak Topic Analytics</h3>
+                <p class="feature-desc">
+                    Track your performance trajectory over time. The platform surfaces recurring weak topics and knowledge gaps 
+                    across multiple sessions so you can study with surgical precision.
+                </p>
+                <div class="feature-perks-list">
+                    <div class="perk-item">✓ Longitudinal score progression charts</div>
+                    <div class="perk-item">✓ Weak topic identification &amp; history log</div>
+                    <div class="perk-item">✓ Exportable performance feedback summaries</div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- =========================================================
+         3. HOW IT WORKS WORKFLOW
+         ========================================================= -->
+    <section class="landing-section reveal-on-scroll">
+        <div class="section-heading-center">
+            <span class="section-tag">Workflow</span>
+            <h2 class="section-title-lg">How InterviewCoach AI Works</h2>
+            <p class="section-desc-center">
+                Three streamlined steps to transition from practicing to excelling in your real interviews.
+            </p>
+        </div>
+
+        <div class="workflow-steps-grid">
+            
+            <div class="workflow-step-card reveal-on-scroll">
+                <div class="step-badge">Step 1</div>
+                <div class="step-icon">⚙️</div>
+                <h4 class="step-title">Configure Role &amp; Resume</h4>
+                <p class="step-desc">
+                    Choose from 25+ software engineering, data science, or product management roles and attach your resume.
+                </p>
+            </div>
+
+            <div class="workflow-step-card reveal-on-scroll">
+                <div class="step-badge">Step 2</div>
+                <div class="step-icon">🎙️</div>
+                <h4 class="step-title">Conduct the Live Session</h4>
+                <p class="step-desc">
+                    Answer questions in real time via voice or keyboard as the AI interviewer adapts questions to your responses.
+                </p>
+            </div>
+
+            <div class="workflow-step-card reveal-on-scroll">
+                <div class="step-badge">Step 3</div>
+                <div class="step-icon">📋</div>
+                <h4 class="step-title">Review Objective Scorecard</h4>
+                <p class="step-desc">
+                    Study your multi-dimensional score report, inspect suggested model answers, and track your improvement.
+                </p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- =========================================================
+         4. BOTTOM CTA BANNER
+         ========================================================= -->
+    <section class="landing-cta-section reveal-on-scroll">
+        <div class="landing-cta-card">
+            <div class="cta-content">
+                <h2 class="cta-title">Ready to Elevate Your Interview Skills?</h2>
+                <p class="cta-subtitle">
+                    Join InterviewCoach AI today and start practicing with an intelligent, adaptive interview coach tailored to your career goals.
+                </p>
+                <div class="cta-actions">
+                    <a href="{{ url_for('auth.register') }}" class="btn-landing-primary">
+                        <span>Create Free Student Account</span>
+                    </a>
+                    <a href="{{ url_for('auth.login') }}" class="btn-landing-ghost">
+                        <span>Existing User? Sign In</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
 </div>
 {% endblock %}

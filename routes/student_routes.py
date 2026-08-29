@@ -20,6 +20,7 @@ from models.interview_report import InterviewReport
 from models.question_feedback import QuestionFeedback
 from services.resume_parser import extract_skills_from_pdf, SKILL_LIBRARY
 from services.conversation_engine import get_next_question
+from services.practice_engine import get_practice_question
 from services.analysis_service import generate_interview_analysis
 from utils.decorators import login_required
 
@@ -70,6 +71,8 @@ def allowed_file(filename):
 def dashboard():
     """
     Student Dashboard view showing summary statistics, live resume status, and action cards.
+    Stats (Total Interviews, Average Score, Weak Topics) reflect ONLY full_interview sessions.
+    Practice sessions are counted separately and displayed with their own card.
     """
     user_id = session.get('student_id') or session.get('user_id')
     user = User.get_by_id(user_id)
@@ -78,24 +81,58 @@ def dashboard():
         flash("User profile not found. Please log in again.", "error")
         return redirect(url_for('auth.logout'))
 
-    # Dynamic metrics based on student data
-    user_sessions = InterviewSession.get_by_user(user.id)
-    evaluated_reports = [r for r in InterviewReport.get_all_by_user(user.id) if r.get('analysis_available')]
+    # --- Full interview stats (excludes practice) ---
+    full_sessions = InterviewSession.get_full_interviews_by_user(user.id)
+    evaluated_reports = [
+        r for r in InterviewReport.get_all_by_user(user.id)
+        if r.get('analysis_available') and r.get('overall_score') is not None
+        and r.get('session_type', 'full_interview') != 'practice'
+    ]
+    # Fallback: filter via session join if session_type not in report dict
+    if evaluated_reports and 'session_type' not in evaluated_reports[0]:
+        full_session_ids = {s.id for s in full_sessions}
+        evaluated_reports = [
+            r for r in evaluated_reports
+            if r.get('session_id') in full_session_ids
+        ]
     avg_score = f"{round(sum(r['overall_score'] for r in evaluated_reports) / len(evaluated_reports))}%" if evaluated_reports else "N/A"
-    
-    # Granular weak topics tracked across past sessions
-    weak_topics = QuestionFeedback.get_weak_topics_by_user(user.id)
+
+    # --- Weak topics from full interviews only ---
+    weak_topics = QuestionFeedback.get_weak_topics_by_user(user.id, session_type='full_interview')
+
+    # --- Practice session count for the Quick Practice card ---
+    practice_sessions = InterviewSession.get_practice_sessions_by_user(user.id)
 
     metrics = {
-        "total_interviews": len(user_sessions),
+        "total_interviews": len(full_sessions),
         "avg_score": avg_score,
         "has_resume": user.has_resume(),
         "resume_filename": user.resume_filename,
         "resume_uploaded_at": user.resume_uploaded_at,
-        "resume_status": "Uploaded" if user.has_resume() else "Not Uploaded"
+        "resume_status": "Uploaded" if user.has_resume() else "Not Uploaded",
+        "practice_session_count": len(practice_sessions),
     }
 
-    return render_template('student/dashboard.html', user=user, metrics=metrics, weak_topics=weak_topics)
+    show_tour = not bool(user.onboarding_completed)
+
+    return render_template(
+        'student/dashboard.html',
+        user=user,
+        metrics=metrics,
+        weak_topics=weak_topics,
+        show_tour=show_tour
+    )
+
+
+@student_bp.route('/complete-onboarding', methods=['POST'])
+@login_required
+def complete_onboarding():
+    """
+    Mark the student dashboard onboarding tour as completed.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    User.mark_onboarding_complete(user_id)
+    return jsonify({"success": True, "message": "Onboarding completed successfully."}), 200
 
 
 @student_bp.route('/profile', methods=['GET'])
@@ -112,6 +149,23 @@ def profile():
         return redirect(url_for('auth.logout'))
 
     return render_template('student/profile.html', user=user)
+
+
+@student_bp.route('/how-it-works', methods=['GET'])
+@login_required
+def how_it_works():
+    """
+    Standalone 'How the AI Works' page.
+    Displays the full technical architecture, scoring rubric, and system transparency notes.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+
+    if not user:
+        flash("User profile not found. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    return render_template('student/how_it_works.html', user=user)
 
 
 # ---------------------------------------------------------
@@ -707,9 +761,10 @@ def get_interview_messages(session_id: int):
 def interview_history():
     """
     Interview History view (Module 14).
-    Displays a comprehensive log of all mock-interview sessions conducted by the student,
-    including completed sessions with scores and actionable report links, as well as
-    in-progress sessions with direct room resume links.
+    Displays two separated tabs:
+      - Full Interviews: standard 4-stage AI mock sessions.
+      - Practice Sessions: quick single-topic practice drills.
+    Each tab has its own statistics and weak-topic aggregation.
     """
     user_id = session.get('student_id') or session.get('user_id')
     user = User.get_by_id(user_id)
@@ -718,28 +773,265 @@ def interview_history():
         flash("User profile not found. Please log in again.", "error")
         return redirect(url_for('auth.logout'))
 
-    # Retrieve all sessions with linked reports, ordered by most recent first
-    sessions_data = InterviewSession.get_sessions_with_reports_by_user(user.id)
+    # --- Full interview sessions with reports ---
+    full_sessions_data = InterviewSession.get_sessions_with_reports_by_user(
+        user.id, session_type='full_interview'
+    )
+    full_completed = sum(1 for s in full_sessions_data if s['status'] == 'completed')
+    full_in_progress = sum(1 for s in full_sessions_data if s['status'] in ('in_progress', 'setup'))
+    full_evaluated = [
+        s for s in full_sessions_data
+        if s['has_report'] and s['analysis_available'] and s['overall_score'] is not None
+    ]
+    full_avg_score = round(
+        sum(s['overall_score'] for s in full_evaluated) / len(full_evaluated)
+    ) if full_evaluated else None
 
-    # Compute summary statistics
-    total_sessions = len(sessions_data)
-    completed_sessions = sum(1 for s in sessions_data if s['status'] == 'completed')
-    in_progress_sessions = sum(1 for s in sessions_data if s['status'] in ('in_progress', 'setup'))
-    
-    evaluated = [s for s in sessions_data if s['has_report'] and s['analysis_available'] and s['overall_score'] is not None]
-    avg_score = round(sum(s['overall_score'] for s in evaluated) / len(evaluated)) if evaluated else None
-
-    history_metrics = {
-        "total_sessions": total_sessions,
-        "completed_sessions": completed_sessions,
-        "in_progress_sessions": in_progress_sessions,
-        "avg_score": avg_score,
-        "has_evaluated": len(evaluated) > 0
+    full_metrics = {
+        "total_sessions": len(full_sessions_data),
+        "completed_sessions": full_completed,
+        "in_progress_sessions": full_in_progress,
+        "avg_score": full_avg_score,
+        "has_evaluated": len(full_evaluated) > 0
     }
+
+    # --- Practice sessions with reports ---
+    practice_sessions_data = InterviewSession.get_sessions_with_reports_by_user(
+        user.id, session_type='practice'
+    )
+    practice_completed = sum(1 for s in practice_sessions_data if s['status'] == 'completed')
+    practice_in_progress = sum(
+        1 for s in practice_sessions_data if s['status'] in ('in_progress', 'setup')
+    )
+    practice_evaluated = [
+        s for s in practice_sessions_data
+        if s['has_report'] and s['analysis_available'] and s['overall_score'] is not None
+    ]
+    practice_avg_score = round(
+        sum(s['overall_score'] for s in practice_evaluated) / len(practice_evaluated)
+    ) if practice_evaluated else None
+
+    practice_metrics = {
+        "total_sessions": len(practice_sessions_data),
+        "completed_sessions": practice_completed,
+        "in_progress_sessions": practice_in_progress,
+        "avg_score": practice_avg_score,
+        "has_evaluated": len(practice_evaluated) > 0
+    }
+
+    # Practice weak topics (isolated — never merged with full interview topics)
+    practice_weak_topics = QuestionFeedback.get_practice_weak_topics_by_user(user.id)
+
+    # Determine which tab to show by default
+    active_tab = request.args.get('tab', 'full')  # 'full' or 'practice'
 
     return render_template(
         'student/interview_history.html',
         user=user,
-        sessions=sessions_data,
-        history_metrics=history_metrics
+        full_sessions=full_sessions_data,
+        full_metrics=full_metrics,
+        practice_sessions=practice_sessions_data,
+        practice_metrics=practice_metrics,
+        practice_weak_topics=practice_weak_topics,
+        active_tab=active_tab,
     )
+
+
+# ---------------------------------------------------------
+# Quick Practice Routes
+# ---------------------------------------------------------
+
+@student_bp.route('/practice/new', methods=['GET', 'POST'])
+@login_required
+def practice_setup():
+    """
+    Quick Practice Setup page.
+    GET:  Render the topic picker form (resume skills + custom free-text).
+    POST: Validate the topic, create a practice session, redirect to practice room.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+
+    if not user:
+        flash("User session invalid. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    resume_skills = user.get_skills()  # pre-populated dropdown options
+
+    if request.method == 'POST':
+        topic_choice = request.form.get('topic', '').strip()
+        custom_topic = request.form.get('custom_topic', '').strip()
+
+        # Resolve the final topic string
+        if topic_choice == '__custom__':
+            resolved_topic = custom_topic
+        else:
+            resolved_topic = topic_choice
+
+        errors = []
+        if not resolved_topic:
+            errors.append("Please select a topic or enter a custom one.")
+        elif len(resolved_topic) > 80:
+            errors.append("Topic must be 80 characters or fewer.")
+
+        if errors:
+            for msg in errors:
+                flash(msg, "error")
+            return render_template(
+                'student/practice_setup.html',
+                user=user,
+                resume_skills=resume_skills,
+                form_data=request.form
+            ), 422
+
+        # Create practice session (topic stored in job_role column)
+        practice_session = InterviewSession.create_practice(
+            user_id=user.id,
+            topic=resolved_topic
+        )
+
+        flash(f"Practice session on \'{resolved_topic}\' started!", "success")
+        return redirect(url_for('student.practice_room', session_id=practice_session.id))
+
+    return render_template(
+        'student/practice_setup.html',
+        user=user,
+        resume_skills=resume_skills,
+        form_data={}
+    )
+
+
+@student_bp.route('/practice/<int:session_id>/room', methods=['GET'])
+@login_required
+def practice_room(session_id: int):
+    """
+    Quick Practice Room interface.
+    Renders the practice chat UI for a single-topic focused session.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+    if not user:
+        flash("User session invalid. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    practice_session = InterviewSession.get_by_id(session_id)
+    if not practice_session:
+        flash(f"Practice session #{session_id} not found.", "error")
+        return redirect(url_for('student.dashboard'))
+
+    if practice_session.user_id != user.id:
+        flash("You do not have permission to access this practice session.", "error")
+        return redirect(url_for('student.dashboard'))
+
+    if practice_session.session_type != 'practice':
+        flash("This is not a practice session.", "error")
+        return redirect(url_for('student.interview_room', session_id=session_id))
+
+    messages = InterviewMessage.get_by_session(session_id)
+
+    return render_template(
+        'student/practice_room.html',
+        user=user,
+        practice_session=practice_session,
+        messages=messages,
+        topic=practice_session.job_role
+    )
+
+
+@student_bp.route('/practice/<int:session_id>/chat', methods=['POST'])
+@login_required
+def practice_chat(session_id: int):
+    """
+    Practice Chat API endpoint.
+    Dispatches to the practice conversation engine instead of the full-interview engine.
+    Accepts JSON: {"answer": "candidate answer text"}
+    Returns the same JSON shape as /interviews/<id>/chat for frontend compatibility.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+    if not user:
+        return jsonify({"success": False, "error": "Unauthorized session."}), 401
+
+    practice_session = InterviewSession.get_by_id(session_id)
+    if not practice_session:
+        return jsonify({"success": False, "error": f"Practice session {session_id} not found."}), 404
+
+    if practice_session.user_id != user.id:
+        return jsonify({
+            "success": False,
+            "error": "Forbidden: You do not have permission to access this session."
+        }), 403
+
+    if practice_session.session_type != 'practice':
+        return jsonify({"success": False, "error": "Not a practice session."}), 400
+
+    data = request.get_json(silent=True) or {}
+    student_answer = data.get('answer') if data.get('answer') is not None else request.form.get('answer')
+
+    result = get_practice_question(session_id=session_id, student_answer=student_answer)
+    status_code = 200 if result.get("success") or result.get("fallback_used") else 500
+    return jsonify(result), status_code
+
+
+@student_bp.route('/practice/<int:session_id>/end', methods=['POST'])
+@login_required
+def end_practice(session_id: int):
+    """
+    End an active practice session.
+    Runs AI analysis on the practice transcript, saves the report,
+    marks the session completed, and redirects to the interview results page
+    (which is generic and renders correctly for both session types).
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+    if not user:
+        flash("User session invalid. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    practice_session = InterviewSession.get_by_id(session_id)
+    if not practice_session:
+        flash(f"Practice session #{session_id} not found.", "error")
+        return redirect(url_for('student.dashboard'))
+
+    if practice_session.user_id != user.id:
+        flash("You do not have permission to modify this session.", "error")
+        return redirect(url_for('student.dashboard'))
+
+    messages = InterviewMessage.get_by_session(session_id)
+
+    # Reuse existing analysis service — it's topic-agnostic
+    try:
+        analysis = generate_interview_analysis(practice_session, messages)
+    except Exception as exc:
+        current_app.logger.error(
+            f"[EndPractice] Unexpected error during analysis for session #{session_id}: {exc}"
+        )
+        analysis = None
+
+    if analysis:
+        from models.interview_report import InterviewReport
+        InterviewReport.create(
+            session_id=session_id,
+            technical_score=analysis['technical_score'],
+            communication_score=analysis['communication_score'],
+            overall_score=analysis['overall_score'],
+            confidence_level=analysis['confidence_level'],
+            strengths=analysis['strengths'],
+            weaknesses=analysis['weaknesses'],
+            suggestions=analysis['suggestions'],
+            analysis_available=True
+        )
+        if analysis.get('question_breakdown'):
+            try:
+                QuestionFeedback.create_batch(session_id, analysis['question_breakdown'])
+            except Exception as q_err:
+                current_app.logger.warning(
+                    f"[EndPractice] Failed saving question breakdown for session #{session_id}: {q_err}"
+                )
+    else:
+        from models.interview_report import InterviewReport
+        InterviewReport.create_unavailable(session_id)
+
+    practice_session.complete()
+    return redirect(url_for('student.interview_results', session_id=session_id))
+

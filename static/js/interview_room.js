@@ -110,7 +110,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Module 10: speak new AI messages aloud
         if (sender === 'ai' && messageText) {
-            VoiceOutputManager.speak(messageText);
+            try {
+                if (typeof VoiceOutputManager !== 'undefined' && VoiceOutputManager.speak) {
+                    VoiceOutputManager.speak(messageText);
+                }
+            } catch (err) {
+                console.warn('[TTS] speak error:', err);
+            }
+        }
+
+        // Live stats & transcript tracking
+        try {
+            if (typeof SessionStatsManager !== 'undefined') {
+                if (sender === 'student') {
+                    SessionStatsManager.recordStudentMessage(messageText);
+                } else {
+                    SessionStatsManager.recordAiMessage();
+                }
+            }
+            if (typeof TranscriptManager !== 'undefined') {
+                TranscriptManager.update();
+            }
+        } catch (statsErr) {
+            console.warn('[Stats/Transcript] update error:', statsErr);
         }
     }
 
@@ -160,6 +182,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (btnSend) btnSend.disabled = true;
 
+        let responseData = null;
+
         try {
             const response = await fetch(`/student/interviews/${sessionId}/chat`, {
                 method: 'POST',
@@ -167,23 +191,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ answer: answerText })
             });
 
-            const data = await response.json();
-
-            if (data && (data.success || data.ai_message)) {
-                appendMessageBubble('ai', data.ai_message);
-                pendingAnswerText = null;
-
-                // #8: Update stage progress from API response
-                if (data.stage) {
-                    StageProgressManager.update(data.stage, data.stage_name || '');
-                }
-            } else {
-                const err = (data && data.error) ? data.error : 'Unable to receive interviewer response.';
-                showError(err);
+            if (!response.ok) {
+                const errJson = await response.json().catch(() => ({}));
+                const errMsg = errJson.error || `Server returned error (${response.status})`;
+                showError(errMsg);
+                return;
             }
+
+            responseData = await response.json();
         } catch (networkError) {
             console.error('Interview chat connection error:', networkError);
             showError('Network connectivity issue. Please check your connection and retry.');
+            return;
         } finally {
             hideTyping();
             ThinkingFillerManager.hide();
@@ -200,6 +219,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (btnSend) btnSend.disabled = false;
             }
             scrollToBottom(true);
+        }
+
+        // Process and display AI response safely outside network try/catch
+        try {
+            if (responseData && (responseData.success || responseData.ai_message)) {
+                appendMessageBubble('ai', responseData.ai_message);
+                pendingAnswerText = null;
+
+                // #8: Update stage progress from API response
+                if (responseData.stage) {
+                    StageProgressManager.update(responseData.stage, responseData.stage_name || '');
+                }
+            } else {
+                const err = (responseData && responseData.error) ? responseData.error : 'Unable to receive interviewer response.';
+                showError(err);
+            }
+        } catch (renderError) {
+            console.error('Error displaying AI response bubble:', renderError);
         }
     }
 
@@ -247,12 +284,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const leftEye   = document.getElementById('overlay-eye-left') || document.getElementById('avatar-left-eye');
         const rightEye  = document.getElementById('overlay-eye-right') || document.getElementById('avatar-right-eye');
 
-        // Dynamic morphing mouth path coordinates (calibrated for overlay viewBox 0 0 100 60)
+        // Dynamic morphing mouth path coordinates (Bug 1 Fix: Subtle, natural micro-visemes)
         const VISEMES = {
-            closed: 'M 15 30 Q 50 34 85 30',
-            half:   'M 18 28 Q 50 42 82 28 Q 50 22 18 28 Z',
-            open:   'M 15 26 Q 50 50 85 26 Q 50 16 15 26 Z',
-            round:  'M 25 25 Q 50 48 75 25 Q 50 15 25 25 Z'
+            closed: 'M 20 30 Q 50 32 80 30',
+            half:   'M 22 29 Q 50 36 78 29 Q 50 25 22 29 Z',
+            open:   'M 20 28 Q 50 40 80 28 Q 50 20 20 28 Z',
+            round:  'M 28 27 Q 50 38 72 27 Q 50 20 28 27 Z'
         };
 
         const visemeCadence = ['half', 'open', 'half', 'closed', 'open', 'round', 'half', 'closed'];
@@ -279,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function scheduleBlink() {
             clearTimeout(blinkTimeoutId);
-            const delay = 2000 + Math.random() * 4000;
+            const delay = 2200 + Math.random() * 4000;
             blinkTimeoutId = setTimeout(triggerBlink, delay);
         }
 
@@ -319,7 +356,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (utterance) {
                 utterance.onboundary = (event) => {
                     if (!isSpeaking) return;
-                    // Analyze starting character of current spoken word for realistic vowel shape
                     const idx = event.charIndex || 0;
                     const char = (text && text[idx]) ? text[idx].toLowerCase() : '';
                     if (['o', 'u', 'w'].includes(char)) {
@@ -352,28 +388,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // Three states: idle | is-thinking | is-speaking
     // =============================================================
     const AvatarAnimator = (() => {
-        const ring = document.getElementById('avatar-speaking-ring');
+        const ring         = document.getElementById('avatar-speaking-ring');
+        const speakingBadge= document.getElementById('ai-speaking-badge');
+        const speakingText = document.getElementById('ai-speaking-text');
 
         function startSpeaking(utterance = null, text = '') {
             if (ring) {
                 ring.classList.remove('is-thinking');
                 ring.classList.add('is-speaking');
             }
+            if (speakingBadge) {
+                speakingBadge.classList.add('is-speaking');
+                if (speakingText) speakingText.textContent = 'SPEAKING...';
+            }
             AvatarLipSyncEngine.start(utterance, text);
         }
 
         function stopSpeaking() {
             if (ring) ring.classList.remove('is-speaking');
+            if (speakingBadge) {
+                speakingBadge.classList.remove('is-speaking');
+                if (speakingText) speakingText.textContent = 'IDLE';
+            }
             AvatarLipSyncEngine.stop();
         }
 
         function startThinking() {
             if (!ring || ring.classList.contains('is-speaking')) return;
             ring.classList.add('is-thinking');
+            if (speakingBadge) {
+                speakingBadge.classList.remove('is-speaking');
+                if (speakingText) speakingText.textContent = 'THINKING...';
+            }
         }
 
         function stopThinking() {
             if (ring) ring.classList.remove('is-thinking');
+            if (speakingBadge && !ring.classList.contains('is-speaking')) {
+                if (speakingText) speakingText.textContent = 'IDLE';
+            }
         }
 
         return { startSpeaking, stopSpeaking, startThinking, stopThinking };
@@ -384,10 +437,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // MODULE 10 — Part A: VoiceOutputManager (Text-to-Speech)
     // =============================================================
     const VoiceOutputManager = (() => {
-        const btnTts   = document.getElementById('btn-tts-toggle');
-        const synth    = window.speechSynthesis;
-        let isMuted    = false;
-        let voices     = [];
+        const btnTts      = document.getElementById('btn-tts-toggle');
+        const subtitleEl  = document.getElementById('ai-subtitle-text');
+        const synth       = window.speechSynthesis;
+        let isMuted       = false;
+        let voices        = [];
 
         function loadVoices() { voices = synth ? synth.getVoices() : []; }
         if (synth) { loadVoices(); synth.addEventListener('voiceschanged', loadVoices); }
@@ -400,7 +454,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return preferred || voices.find(v => v.lang.startsWith('en')) || voices[0] || null;
         }
 
+        function setSubtitle(text) {
+            if (subtitleEl && text) {
+                subtitleEl.textContent = text;
+            }
+        }
+
         function speak(text) {
+            setSubtitle(text);
             if (!synth || !text || isMuted) return;
             synth.cancel();
             const utterance  = new SpeechSynthesisUtterance(text);
@@ -422,8 +483,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (synth) synth.cancel();
             AvatarAnimator.stopSpeaking();
             if (btnTts) {
-                btnTts.textContent = '🔇';
-                btnTts.title       = 'Unmute AI voice';
+                const iconEl = btnTts.querySelector('.ctrl-icon');
+                if (iconEl) iconEl.textContent = '🔇';
+                const labelEl = btnTts.querySelector('.ctrl-label');
+                if (labelEl) labelEl.textContent = 'Speaker Off';
                 btnTts.setAttribute('aria-label', 'Unmute AI voice');
                 btnTts.classList.add('is-muted');
             }
@@ -432,8 +495,10 @@ document.addEventListener('DOMContentLoaded', () => {
         function unmute() {
             isMuted = false;
             if (btnTts) {
-                btnTts.textContent = '🔊';
-                btnTts.title       = 'Mute AI voice';
+                const iconEl = btnTts.querySelector('.ctrl-icon');
+                if (iconEl) iconEl.textContent = '🔊';
+                const labelEl = btnTts.querySelector('.ctrl-label');
+                if (labelEl) labelEl.textContent = 'Speaker On';
                 btnTts.setAttribute('aria-label', 'Mute AI voice');
                 btnTts.classList.remove('is-muted');
             }
@@ -447,9 +512,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnTts) btnTts.addEventListener('click', () => { isMuted ? unmute() : mute(); });
         window.addEventListener('pagehide', cancel);
 
-        return { speak, mute, unmute, cancel };
+        return { speak, mute, unmute, cancel, setSubtitle };
     })();
-
 
 
     // =============================================================
@@ -629,7 +693,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // MODULE 10 — Part D: CameraManager (getUserMedia self-view)
     // =============================================================
     const CameraManager = (() => {
-        const panel          = document.getElementById('camera-panel');
         const videoEl        = document.getElementById('camera-preview');
         const offPlaceholder = document.getElementById('camera-off-placeholder');
         const btnCam         = document.getElementById('btn-cam-toggle');
@@ -638,7 +701,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async function init() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                if (panel) panel.classList.add('hidden');
+                if (offPlaceholder) offPlaceholder.style.display = 'flex';
+                if (videoEl) videoEl.style.display = 'none';
+                updateLabel();
                 return;
             }
             try {
@@ -649,7 +714,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateLabel();
             } catch (err) {
                 console.info('[Camera] Unavailable or denied:', err.name);
-                if (panel) panel.classList.add('hidden');
+                if (offPlaceholder) offPlaceholder.style.display = 'flex';
+                if (videoEl) videoEl.style.display = 'none';
+                isOn = false;
+                updateLabel();
             }
         }
 
@@ -676,8 +744,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function updateLabel() {
             if (!btnCam) return;
-            btnCam.textContent = isOn ? '📷 On' : '📷 Off';
-            btnCam.title       = isOn ? 'Turn camera off' : 'Turn camera on';
+            const iconEl = btnCam.querySelector('.tile-btn-icon');
+            const textEl = btnCam.querySelector('.tile-btn-text');
+            if (iconEl) { iconEl.textContent = '📹'; }
+            if (textEl) { textEl.textContent = isOn ? 'Camera On' : 'Camera Off'; }
+            if (!iconEl && !textEl) btnCam.textContent = isOn ? '📷 On' : '📷 Off';
+            btnCam.title = isOn ? 'Turn camera off' : 'Turn camera on';
         }
 
         if (btnCam) btnCam.addEventListener('click', toggle);
@@ -717,6 +789,82 @@ document.addEventListener('DOMContentLoaded', () => {
         start();
 
         return { stop };
+    })();
+
+
+    // =============================================================
+    // Google Meet Side Panel Manager (Chat & Tips Panels)
+    // =============================================================
+    const MeetPanelManager = (() => {
+        const chatPanel    = document.getElementById('meet-chat-panel');
+        const tipsPanel    = document.getElementById('meet-tips-panel');
+        const btnToggleChat= document.getElementById('btn-toggle-chat');
+        const btnCloseChat = document.getElementById('btn-close-chat');
+        const btnToggleTips= document.getElementById('btn-toggle-tips');
+        const btnCloseTips = document.getElementById('btn-close-tips');
+        const unreadBadge  = document.getElementById('chat-unread-badge');
+
+        let isChatOpen = true; // Default open on desktop
+        let isTipsOpen = false;
+        let unreadCount= 0;
+
+        function setChatOpen(open) {
+            isChatOpen = open;
+            if (chatPanel) {
+                chatPanel.style.display = open ? 'flex' : 'none';
+            }
+            if (btnToggleChat) {
+                btnToggleChat.classList.toggle('active', open);
+            }
+            if (open) {
+                if (isTipsOpen) setTipsOpen(false);
+                unreadCount = 0;
+                if (unreadBadge) {
+                    unreadBadge.style.display = 'none';
+                    unreadBadge.textContent = '0';
+                }
+                scrollToBottom(false);
+            }
+        }
+
+        function setTipsOpen(open) {
+            isTipsOpen = open;
+            if (tipsPanel) {
+                tipsPanel.style.display = open ? 'flex' : 'none';
+            }
+            if (btnToggleTips) {
+                btnToggleTips.classList.toggle('active', open);
+            }
+            if (open && isChatOpen) {
+                setChatOpen(false);
+            }
+        }
+
+        function notifyNewMessage() {
+            if (!isChatOpen) {
+                unreadCount++;
+                if (unreadBadge) {
+                    unreadBadge.textContent = String(unreadCount);
+                    unreadBadge.style.display = 'flex';
+                }
+            }
+        }
+
+        if (btnToggleChat) {
+            btnToggleChat.addEventListener('click', () => setChatOpen(!isChatOpen));
+        }
+        if (btnCloseChat) {
+            btnCloseChat.addEventListener('click', () => setChatOpen(false));
+        }
+
+        if (btnToggleTips) {
+            btnToggleTips.addEventListener('click', () => setTipsOpen(!isTipsOpen));
+        }
+        if (btnCloseTips) {
+            btnCloseTips.addEventListener('click', () => setTipsOpen(false));
+        }
+
+        return { setChatOpen, setTipsOpen, notifyNewMessage };
     })();
 
 
@@ -952,6 +1100,261 @@ document.addEventListener('DOMContentLoaded', () => {
         init();
 
         return { next };
+    })();
+
+
+    // =============================================================
+    // SessionStatsManager — Honest real-time session statistics
+    // Derives all values from actual chat DOM / timestamps only.
+    // =============================================================
+    const SessionStatsManager = (() => {
+        const elAnswersCount  = document.getElementById('stat-answers-count');
+        const elAvgWords      = document.getElementById('stat-avg-words');
+        const elActiveStage   = document.getElementById('stat-active-stage-tag');
+        const elPaceTime      = document.getElementById('stat-pace-time');
+        const elQuestionsAsked= document.getElementById('stat-questions-asked');
+
+        let studentMessageCount = 0;
+        let totalStudentWords   = 0;
+        let aiMessageCount      = 0;
+        let sessionStartMs      = Date.now();
+        let lastTurnTimestamp   = Date.now();
+        let totalPaceSecs       = 0;
+        let paceRecordCount     = 0;
+        let currentStage        = 1;
+
+        // Called each time a student message bubble is appended
+        function recordStudentMessage(text) {
+            if (!text) return;
+
+            // Pace timing: seconds from last AI question to this student answer
+            const nowMs      = Date.now();
+            const paceSecs   = Math.round((nowMs - lastTurnTimestamp) / 1000);
+            if (paceSecs > 1 && paceSecs < 600) { // sanity-check: 1s–10min
+                totalPaceSecs   += paceSecs;
+                paceRecordCount += 1;
+            }
+
+            const wordCount    = text.trim().split(/\s+/).filter(Boolean).length;
+            studentMessageCount++;
+            totalStudentWords += wordCount;
+
+            refresh();
+        }
+
+        // Called each time an AI message bubble is appended
+        function recordAiMessage() {
+            aiMessageCount++;
+            lastTurnTimestamp = Date.now(); // reset pace timer after AI speaks
+            refresh();
+        }
+
+        function setStage(num) {
+            currentStage = parseInt(num, 10) || currentStage;
+            refresh();
+        }
+
+        // Seed from existing messages already in DOM on page load
+        function seedFromDom() {
+            if (!chatContainer) return;
+            const studentMsgs = chatContainer.querySelectorAll('.message-student .bubble-text');
+            const aiMsgs      = chatContainer.querySelectorAll('.message-ai .bubble-text');
+            aiMessageCount    = aiMsgs.length;
+            studentMsgs.forEach((el) => {
+                const words = (el.textContent || '').trim().split(/\s+/).filter(Boolean).length;
+                studentMessageCount++;
+                totalStudentWords += words;
+            });
+            refresh();
+        }
+
+        function refresh() {
+            const avgWords  = studentMessageCount > 0
+                ? Math.round(totalStudentWords / studentMessageCount)
+                : 0;
+            const avgPace   = paceRecordCount > 0
+                ? Math.round(totalPaceSecs / paceRecordCount)
+                : null;
+
+            const stageLabels = {
+                1: 'Stage 1 — Intro',
+                2: 'Stage 2 — Technical',
+                3: 'Stage 3 — Role-Specific',
+                4: 'Stage 4 — Behavioral',
+            };
+
+            if (elAnswersCount)   elAnswersCount.textContent   = String(studentMessageCount);
+            if (elAvgWords)       elAvgWords.textContent       = String(avgWords);
+            if (elActiveStage)    elActiveStage.textContent    = stageLabels[currentStage] || `Stage ${currentStage}`;
+            if (elPaceTime)       elPaceTime.textContent       = avgPace !== null ? String(avgPace) : '--';
+
+            // Also update Interviewer Details "Questions Asked"
+            if (elQuestionsAsked) elQuestionsAsked.textContent = String(aiMessageCount);
+        }
+
+        seedFromDom();
+
+        return { recordStudentMessage, recordAiMessage, setStage, refresh };
+    })();
+
+
+    // =============================================================
+    // TranscriptManager — Read-only formatted conversation log
+    // Builds the Transcript tab from existing chat DOM nodes.
+    // =============================================================
+    const TranscriptManager = (() => {
+        const transcriptList = document.getElementById('transcript-entries-list');
+
+        function update() {
+            if (!transcriptList || !chatContainer) return;
+            transcriptList.innerHTML = '';
+
+            const turns = chatContainer.querySelectorAll('.message-turn:not(.typing-wrapper)');
+            turns.forEach((turn) => {
+                const isStudent = turn.classList.contains('message-student');
+                const textEl    = turn.querySelector('.bubble-text');
+                const timeEl    = turn.querySelector('.message-timestamp');
+                if (!textEl) return;
+
+                const entry = document.createElement('div');
+                entry.className = `transcript-entry${isStudent ? ' entry-student' : ''}`;
+
+                const speakerEl  = document.createElement('span');
+                speakerEl.className = 'entry-speaker';
+                speakerEl.textContent = isStudent ? `${studentName} (You)` : `${interviewerName}`;
+
+                const bodyEl     = document.createElement('p');
+                bodyEl.className = 'entry-text';
+                bodyEl.textContent = textEl.textContent || '';
+
+                entry.appendChild(speakerEl);
+                entry.appendChild(bodyEl);
+                if (timeEl && timeEl.textContent.trim()) {
+                    const tsEl = document.createElement('span');
+                    tsEl.className = 'entry-timestamp';
+                    tsEl.textContent = timeEl.textContent.trim();
+                    entry.appendChild(tsEl);
+                }
+                transcriptList.appendChild(entry);
+            });
+        }
+
+        // Expose globally (called by switchPanelTab in HTML)
+        window.updateTranscriptDocument = update;
+
+        return { update };
+    })();
+
+
+    // =============================================================
+    // ChecklistProgressManager — Vertical 5-stage progress checklist
+    // Reads stage from StageProgressManager updates.
+    // =============================================================
+    const ChecklistProgressManager = (() => {
+        const fillBar    = document.getElementById('checklist-progress-fill');
+        const labelEl    = document.getElementById('checklist-progress-label');
+        const percentEl  = document.getElementById('checklist-progress-percent');
+
+        // Map API stages (1–4) to display stages (1–5, stage 5 = Final Feedback)
+        // Stage 4 = Behavioral → Stage 5 = Final Feedback triggers on session end
+        function update(stageNum) {
+            const num = parseInt(stageNum, 10);
+            if (isNaN(num) || num < 1) return;
+
+            // Mark stage items completed / active
+            for (let i = 1; i <= 5; i++) {
+                const item = document.getElementById(`stage-check-${i}`);
+                if (!item) continue;
+                item.classList.remove('active', 'completed');
+                const icon = item.querySelector('.stage-status-icon');
+
+                if (i < num) {
+                    item.classList.add('completed');
+                    if (icon) icon.textContent = '✓';
+                } else if (i === num) {
+                    item.classList.add('active');
+                    if (icon) icon.textContent = String(i);
+                } else {
+                    if (icon && i < 5) icon.textContent = String(i);
+                }
+            }
+
+            // Progress bar: map stage 1-4 → 25%/50%/75%/100% for the bar
+            const pct = Math.min(100, Math.round((num / 4) * 100));
+            if (fillBar)   fillBar.style.width     = `${pct}%`;
+            if (labelEl)   labelEl.textContent      = `Stage ${Math.min(num, 4)} of 4`;
+            if (percentEl) percentEl.textContent    = `${pct}%`;
+
+            // Update stats panel too
+            SessionStatsManager.setStage(num);
+        }
+
+        // Patch StageProgressManager.update to also drive the checklist
+        const _origUpdate = StageProgressManager.update.bind(StageProgressManager);
+        StageProgressManager.update = function(stageNum, stageName) {
+            _origUpdate(stageNum, stageName);
+            update(stageNum);
+        };
+
+        // Initialize at Stage 1
+        update(1);
+
+        return { update };
+    })();
+
+
+    // =============================================================
+    // Global helper: Copy full transcript to clipboard
+    // Called by btn-copy-transcript in HTML
+    // =============================================================
+    window.copyFullTranscript = function copyFullTranscript() {
+        if (!chatContainer) return;
+        const turns   = chatContainer.querySelectorAll('.message-turn:not(.typing-wrapper)');
+        const lines   = [];
+        turns.forEach((turn) => {
+            const isStudent = turn.classList.contains('message-student');
+            const textEl    = turn.querySelector('.bubble-text');
+            if (!textEl) return;
+            const speaker   = isStudent ? `${studentName} (You)` : interviewerName;
+            lines.push(`${speaker}: ${textEl.textContent.trim()}`);
+        });
+        const fullText = lines.join('\n\n');
+        if (!fullText) return;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(fullText).then(() => {
+                const btn = document.getElementById('btn-copy-transcript');
+                if (btn) {
+                    btn.textContent = '✅ Copied!';
+                    setTimeout(() => { btn.textContent = '📋 Copy Text'; }, 2000);
+                }
+            }).catch(() => {});
+        }
+    };
+
+
+    // =============================================================
+    // MicrophoneManager — Updates tile button state for mic btn
+    // =============================================================
+    const MicrophoneButtonManager = (() => {
+        const btnMic = document.getElementById('btn-mic');
+        if (!btnMic) return {};
+
+        function setListening(active) {
+            const iconEl  = btnMic.querySelector('.tile-btn-icon');
+            const textEl  = btnMic.querySelector('.tile-btn-text');
+            if (active) {
+                btnMic.classList.add('is-listening');
+                if (iconEl) iconEl.textContent = '🎤';
+                if (textEl) textEl.textContent = 'Listening…';
+            } else {
+                btnMic.classList.remove('is-listening');
+                if (iconEl) iconEl.textContent = '🎤';
+                if (textEl) textEl.textContent = 'Mic On';
+            }
+        }
+
+        return { setListening };
     })();
 
 

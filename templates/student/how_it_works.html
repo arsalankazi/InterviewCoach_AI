@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}How the AI Works - InterviewCoach AI{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- Page Header -->
+    <div class="dashboard-header" style="margin-bottom: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem;">
+            <a href="{{ url_for('student.dashboard') }}" style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: #94a3b8; text-decoration: none; transition: color 0.2s ease;">
+                <span>&larr;</span> Dashboard
+            </a>
+            <span style="color: #475569; font-size: 0.85rem;">/</span>
+            <span style="font-size: 0.85rem; color: #64748b;">How the AI Works</span>
+        </div>
+        <div class="welcome-badge" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+            <span>&#9881;&#65039;</span> Architecture &amp; Scoring Rubric
+        </div>
+        <h1 class="dashboard-title" style="margin-top: 0.5rem;">How the AI Works - Under the Hood</h1>
+        <p class="dashboard-subtitle">A transparent breakdown of our question generation, conversation memory, and objective scoring criteria.</p>
+    </div>
+
+    <!-- 4-Step Architecture Flow Strip -->
+    <div class="hiw-flow-container" style="margin-top: 2rem;">
+        <div class="hiw-flow-title">System Execution Pipeline</div>
+        <div class="hiw-flow-grid">
+            <div class="hiw-flow-step">
+                <div class="hiw-step-num">01</div>
+                <div class="hiw-step-icon">&#128196;</div>
+                <div class="hiw-step-heading">Resume Parsing</div>
+                <div class="hiw-step-desc">Extracts skills via <code>pdfplumber</code> against a curated tech library.</div>
+            </div>
+            <div class="hiw-flow-arrow">&rarr;</div>
+            <div class="hiw-flow-step">
+                <div class="hiw-step-num">02</div>
+                <div class="hiw-step-icon">&#128172;</div>
+                <div class="hiw-step-heading">4-Stage Dialogue</div>
+                <div class="hiw-step-desc">Progresses from greeting to technical depth &amp; adaptive scenarios.</div>
+            </div>
+            <div class="hiw-flow-arrow">&rarr;</div>
+            <div class="hiw-flow-step">
+                <div class="hiw-step-num">03</div>
+                <div class="hiw-step-icon">&#129504;</div>
+                <div class="hiw-step-heading">Context Memory</div>
+                <div class="hiw-step-desc">Full conversation history maintained across turns in Gemini multi-turn payload.</div>
+            </div>
+            <div class="hiw-flow-arrow">&rarr;</div>
+            <div class="hiw-flow-step">
+                <div class="hiw-step-num">04</div>
+                <div class="hiw-step-icon">&#128202;</div>
+                <div class="hiw-step-heading">Deep Analysis</div>
+                <div class="hiw-step-desc">Single-shot transcript evaluation producing scores, tips &amp; weak topics.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Explanation Grid -->
+    <div class="hiw-details-grid" style="margin-top: 2rem;">
+        <div class="hiw-detail-card">
+            <div class="hiw-detail-header">
+                <span class="hiw-card-icon">&#127897;&#65039;</span>
+                <h4>Question Generation &amp; Flow</h4>
+            </div>
+            <ul class="hiw-list">
+                <li>
+                    <strong>Resume Skill Extraction:</strong> When you upload a PDF resume, the parser scans the text layer for whole-word matches against an extensive technical skill library.
+                </li>
+                <li>
+                    <strong>Role-Aligned System Prompt:</strong> Each session generates dynamic system instructions combining your target job role (e.g. <em>Data Analyst</em>, <em>Software Engineer</em>), detected skills, and interviewer persona.
+                </li>
+                <li>
+                    <strong>4-Stage Adaptive Flow:</strong>
+                    <div class="hiw-substages">
+                        <span class="hiw-substage-pill">Stage 1: Greeting &amp; Readiness</span>
+                        <span class="hiw-substage-pill">Stage 2: Candidate Introduction</span>
+                        <span class="hiw-substage-pill">Stage 3: Core Technical Competency</span>
+                        <span class="hiw-substage-pill">Stage 4: Adaptive Deep-Dives</span>
+                    </div>
+                </li>
+                <li>
+                    <strong>Full Session Memory:</strong> Every dialogue turn is recorded in SQLite. The complete turn history is sent to Gemini on each exchange with strict user/model alternation so the AI never loses conversational context.
+                </li>
+            </ul>
+        </div>
+
+        <div class="hiw-detail-card">
+            <div class="hiw-detail-header">
+                <span class="hiw-card-icon">&#128200;</span>
+                <h4>Scoring Rubrics &amp; Report Generation</h4>
+            </div>
+            <ul class="hiw-list">
+                <li>
+                    <strong>Technical Score (0-100):</strong> Evaluates factual correctness, depth, relevance to the job role, and problem-solving reasoning in candidate responses.
+                </li>
+                <li>
+                    <strong>Communication Score (0-100):</strong> Evaluates structural clarity, articulation, conciseness, and professional tone in your explanations.
+                </li>
+                <li>
+                    <strong>Overall Weighted Score:</strong> Computed using an industry-standard formula:<br>
+                    <code>Overall = (0.60 &times; Technical Score) + (0.40 &times; Communication Score)</code>
+                </li>
+                <li>
+                    <strong>Confidence Level (High / Moderate / Low):</strong> Evaluated based on verbal assertiveness, specificity, and completeness versus vague or hesitant phrasing.
+                </li>
+                <li>
+                    <strong>Question Breakdown &amp; Weak Topics:</strong> Every question is graded individually (0-100) with topic tags, benchmark model answers, and coaching critiques. Sub-70% scores automatically populate your Weak Topics tracker.
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Transparency & Limitations Callout -->
+    <div class="hiw-transparency-box" style="margin-top: 2rem; margin-bottom: 2.5rem;">
+        <div class="hiw-transparency-header">
+            <span class="hiw-transparency-icon">&#128737;&#65039;</span>
+            <div>
+                <h4 class="hiw-transparency-title">System Transparency &amp; What the AI Does NOT Do</h4>
+                <p class="hiw-transparency-subtitle">Explicitly designed for fair, objective, text-based competency evaluation.</p>
+            </div>
+        </div>
+        <div class="hiw-limits-grid">
+            <div class="hiw-limit-item">
+                <span class="hiw-limit-icon">&#128683;</span>
+                <div class="hiw-limit-text">
+                    <strong>No Computer Vision / Video Tracking:</strong> The camera tile provides a local video mirror for candidate comfort. The system does <em>not</em> track eye contact, facial expressions, micro-emotions, or body posture.
+                </div>
+            </div>
+            <div class="hiw-limit-item">
+                <span class="hiw-limit-icon">&#128683;</span>
+                <div class="hiw-limit-text">
+                    <strong>No Voice Acoustics / Tone Analysis:</strong> Spoken answers are converted to text in real-time via the browser Web Speech API. Scoring evaluates the <em>content, vocabulary, structure, and clarity</em> of transcribed words, not pitch or volume.
+                </div>
+            </div>
+            <div class="hiw-limit-item">
+                <span class="hiw-limit-icon">&#9989;</span>
+                <div class="hiw-limit-text">
+                    <strong>Objective Transcript Evaluation:</strong> All feedback, scores, and improvement suggestions derive strictly from the verbatim conversational transcript and standard hiring rubrics.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back to Dashboard CTA -->
+    <div style="text-align: center; padding-bottom: 3rem;">
+        <a href="{{ url_for('student.dashboard') }}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <span>&larr;</span> Back to Dashboard
+        </a>
+    </div>
+
+</div>
+{% endblock %}
