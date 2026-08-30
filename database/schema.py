@@ -1,41 +1,84 @@
 from pathlib import Path
 from flask import current_app
-from database.connection import get_db
+from database.connection import get_db, db
 
 SCHEMA_FILE = Path(__file__).resolve().parent / 'schema.sql'
 
 
 def init_db(app=None):
     """
-    Initialize SQLite database tables using the schema.sql definition
-    and apply any necessary schema column migrations safely.
+    Initialize database tables for PostgreSQL or SQLite.
+    Creates all necessary schemas, tables, and indexes.
     """
     if app:
         with app.app_context():
-            _execute_schema()
-            _run_migrations()
+            _initialize_database()
     else:
-        _execute_schema()
-        _run_migrations()
+        _initialize_database()
 
 
-def _execute_schema():
-    """Execute the schema SQL file against the current database connection."""
-    db = get_db()
+def _initialize_database():
+    """Create tables using SQLAlchemy or raw SQLite script depending on engine."""
+    uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    is_testing = current_app.config.get('TESTING', False)
+    db_path = current_app.config.get('DATABASE_PATH')
+
+    is_sqlite = is_testing or uri.startswith('sqlite:') or 'sqlite' in uri or (not uri and db_path)
+
+    if is_sqlite:
+        _execute_sqlite_schema()
+        _run_sqlite_migrations()
+    else:
+        # PostgreSQL / SQLAlchemy
+        db.create_all()
+        _ensure_postgres_defaults()
+
+
+def _ensure_postgres_defaults():
+    """Ensure column defaults and nullability on PostgreSQL tables."""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("ALTER TABLE users ALTER COLUMN onboarding_completed SET DEFAULT 0;")
+        cursor.execute("ALTER TABLE users ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
+        cursor.execute("ALTER TABLE admins ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
+        cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN status SET DEFAULT 'setup';")
+        cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN session_type SET DEFAULT 'full_interview';")
+        cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
+        cursor.execute("ALTER TABLE interview_messages ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
+        cursor.execute("ALTER TABLE interview_reports ALTER COLUMN technical_score SET DEFAULT 0;")
+        cursor.execute("ALTER TABLE interview_reports ALTER COLUMN communication_score SET DEFAULT 0;")
+        cursor.execute("ALTER TABLE interview_reports ALTER COLUMN overall_score SET DEFAULT 0;")
+        cursor.execute("ALTER TABLE interview_reports ALTER COLUMN confidence_level SET DEFAULT 'Moderate';")
+        cursor.execute("ALTER TABLE interview_reports ALTER COLUMN strengths SET DEFAULT '[]';")
+        cursor.execute("ALTER TABLE interview_reports ALTER COLUMN weaknesses SET DEFAULT '[]';")
+        cursor.execute("ALTER TABLE interview_reports ALTER COLUMN suggestions SET DEFAULT '[]';")
+        cursor.execute("ALTER TABLE interview_reports ALTER COLUMN analysis_available SET DEFAULT 1;")
+        cursor.execute("ALTER TABLE interview_reports ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
+        cursor.execute("ALTER TABLE question_feedback ALTER COLUMN score SET DEFAULT 0;")
+        cursor.execute("ALTER TABLE question_feedback ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
+        conn.commit()
+    except Exception:
+        pass
+
+
+
+def _execute_sqlite_schema():
+    """Execute the schema SQL file against the current SQLite connection."""
+    conn = get_db()
     with open(SCHEMA_FILE, mode='r', encoding='utf-8') as f:
         schema_sql = f.read()
-    db.executescript(schema_sql)
-    db.commit()
+    conn.executescript(schema_sql)
+    conn.commit()
 
 
-def _run_migrations():
-    """Safely apply column additions for existing database tables."""
-    db = get_db()
-    cursor = db.cursor()
+def _run_sqlite_migrations():
+    """Safely apply column additions for existing SQLite database tables."""
+    conn = get_db()
+    cursor = conn.cursor()
     cursor.execute("PRAGMA table_info(users);")
     rows = cursor.fetchall()
     
-    # Extract column names (supporting sqlite3.Row and tuples)
     columns = [row['name'] if isinstance(row, dict) or hasattr(row, 'keys') else row[1] for row in rows]
     
     if 'resume_filename' not in columns:
@@ -47,7 +90,7 @@ def _run_migrations():
     if 'onboarding_completed' not in columns:
         cursor.execute("ALTER TABLE users ADD COLUMN onboarding_completed INTEGER NOT NULL DEFAULT 0;")
 
-    # ── Create interview_sessions table if it doesn't exist yet ───────────
+    # Ensure interview_sessions table exists
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS interview_sessions (
@@ -68,7 +111,6 @@ def _run_migrations():
         "CREATE INDEX IF NOT EXISTS idx_sessions_user ON interview_sessions(user_id);"
     )
 
-    # ── Migrate session_type column onto existing interview_sessions table ──
     cursor.execute("PRAGMA table_info(interview_sessions);")
     session_cols = [
         row['name'] if isinstance(row, dict) or hasattr(row, 'keys') else row[1]
@@ -83,7 +125,7 @@ def _run_migrations():
         "CREATE INDEX IF NOT EXISTS idx_sessions_type ON interview_sessions(session_type);"
     )
 
-    # ── Create interview_messages table if it doesn't exist yet ───────────
+    # Ensure interview_messages table exists
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS interview_messages (
@@ -99,7 +141,7 @@ def _run_migrations():
         "CREATE INDEX IF NOT EXISTS idx_messages_session ON interview_messages(session_id);"
     )
 
-    # ── Create interview_reports table if it doesn't exist yet ────────────
+    # Ensure interview_reports table exists
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS interview_reports (
@@ -121,7 +163,7 @@ def _run_migrations():
         "CREATE INDEX IF NOT EXISTS idx_reports_session ON interview_reports(session_id);"
     )
 
-    # ── Create question_feedback table if it doesn't exist yet ───────────
+    # Ensure question_feedback table exists
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS question_feedback (
@@ -144,4 +186,4 @@ def _run_migrations():
         "CREATE INDEX IF NOT EXISTS idx_qfeedback_topic ON question_feedback(topic);"
     )
 
-    db.commit()
+    conn.commit()

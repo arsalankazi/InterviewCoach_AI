@@ -41,7 +41,7 @@ def create_app(config_name=None):
     upload_folder = Path(app.config.get('UPLOAD_FOLDER', str(instance_path)))
     upload_folder.mkdir(parents=True, exist_ok=True)
 
-    # Initialize SQLite database connection management
+    # Initialize database connection and migrations management (Flask-SQLAlchemy)
     database.init_app(app)
 
     # Ensure database schema and tables exist
