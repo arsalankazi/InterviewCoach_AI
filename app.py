@@ -7,7 +7,7 @@ from config import get_config
 import database
 from database.schema import init_db
 import routes
-from utils.helpers import api_error
+from utils.helpers import api_error, safe_format_date, safe_format_time, safe_format_datetime
 
 # Ensure .env is loaded as early as possible
 load_dotenv(override=True)
@@ -50,6 +50,11 @@ def create_app(config_name=None):
 
     # Register blueprints / routes
     routes.register_routes(app)
+
+    # Register Jinja template filters for safe datetime formatting
+    app.jinja_env.filters['format_date'] = safe_format_date
+    app.jinja_env.filters['format_time'] = safe_format_time
+    app.jinja_env.filters['format_datetime'] = safe_format_datetime
 
     # Register CLI commands
     @app.cli.command('init-db')

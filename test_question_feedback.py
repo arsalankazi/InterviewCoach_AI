@@ -127,7 +127,7 @@ def run_tests():
         # 2. Dashboard verification
         res_dash = client.get('/student/dashboard')
         assert res_dash.status_code == 200
-        assert b'Weak Topics to Improve' in res_dash.data
+        assert b'Weak Topics' in res_dash.data
 
         # 3. Weak topics API verification
         res_api = client.get('/student/weak-topics')

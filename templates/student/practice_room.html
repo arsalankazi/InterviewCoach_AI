@@ -90,7 +90,7 @@
                     <div class="bubble-meta">
                         <span class="bubble-author">{{ 'AI Practice Coach' if msg.sender == 'ai' else user.name }}</span>
                         {% if msg.created_at %}
-                        <span class="bubble-timestamp">{{ msg.created_at[11:16] if msg.created_at|length >= 16 else '' }}</span>
+                        <span class="bubble-timestamp">{{ msg.created_at|format_time if msg.created_at else '' }}</span>
                         {% endif %}
                     </div>
                     <div class="bubble-text-content">{{ msg.message_text }}</div>

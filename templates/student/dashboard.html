@@ -52,7 +52,7 @@
                 </div>
                 <div class="stat-desc">
                     {% if metrics.has_resume %}
-                    Active ({{ metrics.resume_uploaded_at }})
+                    Active ({{ metrics.resume_uploaded_at|format_date if metrics.resume_uploaded_at else 'Active' }})
                     {% else %}
                     Upload to customize questions
                     {% endif %}

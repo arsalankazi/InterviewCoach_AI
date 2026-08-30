@@ -23,6 +23,7 @@ from services.conversation_engine import get_next_question
 from services.practice_engine import get_practice_question
 from services.analysis_service import generate_interview_analysis
 from utils.decorators import login_required
+from utils.helpers import safe_format_date, safe_format_datetime
 
 student_bp = Blueprint('student', __name__, url_prefix='/student')
 
@@ -108,7 +109,7 @@ def dashboard():
         "avg_score": avg_score,
         "has_resume": user.has_resume(),
         "resume_filename": user.resume_filename,
-        "resume_uploaded_at": user.resume_uploaded_at,
+        "resume_uploaded_at": safe_format_datetime(user.resume_uploaded_at, fmt='%Y-%m-%d %H:%M', fallback=None),
         "resume_status": "Uploaded" if user.has_resume() else "Not Uploaded",
         "practice_session_count": len(practice_sessions),
     }
@@ -625,7 +626,7 @@ def interview_results(session_id: int):
         # Retrieve all completed reports for this candidate to construct the trend line chart
         all_user_reports = InterviewReport.get_all_by_user(user.id)
         for idx, r in enumerate(all_user_reports, start=1):
-            date_str = (r.get('report_created_at') or r.get('session_created_at') or '')[:10]
+            date_str = safe_format_date(r.get('report_created_at') or r.get('session_created_at'))
             progress_chart_data.append({
                 "session_id": r['session_id'],
                 "label": f"#{r['session_id']} {r['job_role']}",

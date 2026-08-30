@@ -10,6 +10,7 @@ session_type field:
 """
 
 from database.connection import get_db
+from utils.helpers import safe_format_datetime
 
 
 class InterviewSession:
@@ -341,7 +342,7 @@ class InterviewSession:
                 'job_role': row['job_role'],
                 'status': row['status'],
                 'session_type': row['session_type'],
-                'session_created_at': row['session_created_at'],
+                'session_created_at': safe_format_datetime(row['session_created_at'], fmt='%Y-%m-%d %H:%M:%S', fallback=None),
                 'report_id': row['report_id'],
                 'technical_score': row['technical_score'],
                 'communication_score': row['communication_score'],
@@ -349,7 +350,7 @@ class InterviewSession:
                 'confidence_level': row['confidence_level'],
                 'analysis_available': bool(row['analysis_available']) if row['analysis_available'] is not None else False,
                 'has_report': row['report_id'] is not None,
-                'report_created_at': row['report_created_at']
+                'report_created_at': safe_format_datetime(row['report_created_at'], fmt='%Y-%m-%d %H:%M:%S', fallback=None)
             })
         return results
 

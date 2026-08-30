@@ -8,6 +8,7 @@ Also powers student weak topic aggregation and targeted improvement tracking.
 
 import logging
 from database.connection import get_db
+from utils.helpers import safe_format_date
 
 logger = logging.getLogger(__name__)
 
@@ -238,15 +239,17 @@ class QuestionFeedback:
             # Normalize title casing for consistent grouping
             topic_key = topic.title() if len(topic) <= 30 else topic
 
+            raw_date = row['session_created_at'] or row['feedback_created_at'] or ''
+            formatted_date = safe_format_date(raw_date)
+
             if topic_key not in weak_topics:
-                session_date = (row['session_created_at'] or row['feedback_created_at'] or '')[:10]
                 weak_topics[topic_key] = {
                     'topic': topic_key,
                     'count': 0,
                     'total_score': 0,
                     'avg_score': 0,
                     'last_question': row['question_text'],
-                    'last_session_date': session_date,
+                    'last_session_date': formatted_date,
                     'example_question': row['question_text'],
                     'job_role': row['job_role'],
                     'questions': []
@@ -263,7 +266,7 @@ class QuestionFeedback:
                 'feedback_text': row['feedback_text'],
                 'score': row['score'],
                 'job_role': row['job_role'],
-                'date': (row['session_created_at'] or row['feedback_created_at'] or '')[:10]
+                'date': formatted_date
             })
 
         # Calculate average score per weak topic and sort by count DESC

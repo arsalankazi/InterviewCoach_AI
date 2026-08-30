@@ -164,10 +164,10 @@
                                     <!-- Date -->
                                     <td class="history-date-cell">
                                         <div class="date-main">
-                                            {{ session.session_created_at[:10] if session.session_created_at else 'Recent' }}
+                                            {{ session.session_created_at|format_date if session.session_created_at else 'Recent' }}
                                         </div>
                                         <div class="date-time">
-                                            {{ session.session_created_at[11:16] if session.session_created_at and session.session_created_at|length >= 16 else '' }}
+                                            {{ session.session_created_at|format_time if session.session_created_at else '' }}
                                         </div>
                                     </td>
 
@@ -402,10 +402,10 @@
                                     <!-- Date -->
                                     <td class="history-date-cell">
                                         <div class="date-main">
-                                            {{ session.session_created_at[:10] if session.session_created_at else 'Recent' }}
+                                            {{ session.session_created_at|format_date if session.session_created_at else 'Recent' }}
                                         </div>
                                         <div class="date-time">
-                                            {{ session.session_created_at[11:16] if session.session_created_at and session.session_created_at|length >= 16 else '' }}
+                                            {{ session.session_created_at|format_time if session.session_created_at else '' }}
                                         </div>
                                     </td>
 
