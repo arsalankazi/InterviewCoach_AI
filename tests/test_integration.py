@@ -461,6 +461,25 @@ class TestInterviewFlow(BaseTestCase):
         resp = self.client.get("/student/interviews/history")
         self.assertEqual(resp.status_code, 200)
 
+    def test_completed_session_room_redirects_to_results(self):
+        """Verify that visiting the room of a completed session redirects to results."""
+        register_and_login(self.client)
+        with self.app.app_context():
+            from models.interview_session import InterviewSession
+            session_obj = InterviewSession.create(
+                user_id=1,
+                interviewer_gender="female",
+                interviewer_name="Sarah",
+                job_role="Data Analyst",
+                interview_type="general",
+                total_questions=3,
+            )
+            session_obj.update_status("completed")
+
+            resp = self.client.get(f"/student/interviews/{session_obj.id}/room", follow_redirects=False)
+            self.assertEqual(resp.status_code, 302)
+            self.assertIn(f"/student/interviews/{session_obj.id}/results", resp.headers.get("Location", ""))
+
 
 # ===========================================================================
 # 5. AUTHORIZATION CHECKS
@@ -825,6 +844,366 @@ class TestPracticeMode(BaseTestCase):
 
 
 # ===========================================================================
+# 9. INTERVIEW CUSTOMIZATION (TYPE & QUESTIONS)
+# ===========================================================================
+
+class TestInterviewCustomization(BaseTestCase):
+
+    def _extract_session_id(self, location_header: str) -> int:
+        parts = location_header.rstrip("/").split("/")
+        for p in parts:
+            if p.isdigit():
+                return int(p)
+        return None
+
+    def test_setup_saves_interview_type_and_total_questions(self):
+        """Verify interview setup form saves interview_type and total_questions correctly."""
+        from models.interview_session import InterviewSession
+
+        register_and_login(self.client)
+
+        # 1. Test standard predefined options (technical, 5 questions)
+        resp = self.client.post(
+            "/student/interviews/new",
+            data={
+                "interviewer_gender": "female",
+                "interviewer_name": "Sarah",
+                "job_role": "Software Engineer",
+                "interview_type": "technical",
+                "total_questions": "5",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        session_id = self._extract_session_id(resp.headers.get("Location", ""))
+        self.assertIsNotNone(session_id)
+
+        with self.app.app_context():
+            session_obj = InterviewSession.get_by_id(session_id)
+            self.assertIsNotNone(session_obj)
+            self.assertEqual(session_obj.interview_type, "technical")
+            self.assertEqual(session_obj.total_questions, 5)
+
+        # 2. Test custom question count option (general, custom: 6 questions)
+        resp2 = self.client.post(
+            "/student/interviews/new",
+            data={
+                "interviewer_gender": "male",
+                "interviewer_name": "Alex",
+                "job_role": "Data Analyst",
+                "interview_type": "general",
+                "total_questions": "custom",
+                "custom_questions": "6",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(resp2.status_code, 302)
+        session_id2 = self._extract_session_id(resp2.headers.get("Location", ""))
+        with self.app.app_context():
+            session_obj2 = InterviewSession.get_by_id(session_id2)
+            self.assertEqual(session_obj2.interview_type, "general")
+            self.assertEqual(session_obj2.total_questions, 6)
+
+    def test_conversation_engine_prompts_for_types(self):
+        """Verify conversation engine builds differentiated prompts for technical vs general vs mixed."""
+        from services.conversation_engine import build_system_prompt
+        from models.interview_session import InterviewSession
+        from models.user import User
+
+        with self.app.app_context():
+            user = User(id=1, name="Alice Candidate", email="alice@test.com")
+
+            # Technical session
+            tech_session = InterviewSession(
+                id=1,
+                user_id=1,
+                interviewer_gender="male",
+                interviewer_name="Alex",
+                job_role="Software Engineer",
+                interview_type="technical",
+                total_questions=8,
+            )
+            tech_prompt = build_system_prompt(tech_session, user, 3, "Stage 3")
+            self.assertIn("TECHNICAL ONLY", tech_prompt)
+            self.assertIn("Do NOT ask HR, behavioral", tech_prompt)
+
+            # General session
+            gen_session = InterviewSession(
+                id=2,
+                user_id=1,
+                interviewer_gender="female",
+                interviewer_name="Sarah",
+                job_role="Product Manager",
+                interview_type="general",
+                total_questions=8,
+            )
+            gen_prompt = build_system_prompt(gen_session, user, 3, "Stage 3")
+            self.assertIn("GENERAL / HR ONLY", gen_prompt)
+            self.assertIn("Do NOT ask technical coding", gen_prompt)
+
+            # Mixed session
+            mixed_session = InterviewSession(
+                id=3,
+                user_id=1,
+                interviewer_gender="male",
+                interviewer_name="Alex",
+                job_role="Full Stack Developer",
+                interview_type="mixed",
+                total_questions=8,
+            )
+            mixed_prompt = build_system_prompt(mixed_session, user, 3, "Stage 3")
+            self.assertIn("MIXED", mixed_prompt)
+            self.assertIn("50-50 blend", mixed_prompt)
+
+    def test_wrap_up_message_at_total_questions(self):
+        """Verify wrap-up message fires gracefully when total_questions is reached."""
+        from models.interview_session import InterviewSession
+        from services.conversation_engine import get_next_question
+
+        register_and_login(self.client)
+
+        with self.app.app_context():
+            # Create session with total_questions = 3
+            session_obj = InterviewSession.create(
+                user_id=1,
+                interviewer_gender="male",
+                interviewer_name="Alex",
+                job_role="Software Engineer",
+                interview_type="mixed",
+                total_questions=3,
+            )
+
+            # Turn 0: Greeting (no student answer yet)
+            res0 = get_next_question(session_obj.id, student_answer=None)
+            self.assertFalse(res0["is_wrap_up"])
+            self.assertEqual(res0["current_question_number"], 0)
+
+            # Turn 1: Candidate confirms readiness ("I am ready") -> AI asks Intro (Q0)
+            res1 = get_next_question(session_obj.id, student_answer="I am ready to begin.")
+            self.assertFalse(res1["is_wrap_up"])
+            self.assertEqual(res1["current_question_number"], 0)
+            self.assertTrue(res1.get("is_intro"))
+
+            # Turn 2: Candidate answers Intro -> AI asks actual Q1 of 3
+            res2 = get_next_question(session_obj.id, student_answer="Here is my background and experience.")
+            self.assertFalse(res2["is_wrap_up"])
+            self.assertEqual(res2["current_question_number"], 1)
+
+            # Turn 3: Candidate answers actual Q1 -> AI asks actual Q2 of 3
+            res3 = get_next_question(session_obj.id, student_answer="I use Python and PostgreSQL for backend services.")
+            self.assertFalse(res3["is_wrap_up"])
+            self.assertEqual(res3["current_question_number"], 2)
+
+            # Turn 4: Candidate answers actual Q2 -> AI asks actual Q3 of 3 (final question)
+            res4 = get_next_question(session_obj.id, student_answer="I design microservices with fault-tolerant circuit breakers.")
+            self.assertFalse(res4["is_wrap_up"])
+            self.assertEqual(res4["current_question_number"], 3)
+
+            # Turn 5: Candidate answers actual Q3 (all 3 actual questions answered) -> AI must gracefully wrap up
+            res5 = get_next_question(session_obj.id, student_answer="Here is my final answer for question 3.")
+            self.assertTrue(res5["is_wrap_up"])
+            self.assertEqual(res5["current_question_number"], 3)
+            self.assertIn("brings us to the end of our interview", res5["ai_message"].lower())
+
+    def test_chat_api_returns_question_progress_metadata(self):
+        """Verify chat API response contains current_question_number, total_questions, and is_wrap_up."""
+        register_and_login(self.client)
+
+        resp = self.client.post(
+            "/student/interviews/new",
+            data={
+                "interviewer_gender": "male",
+                "interviewer_name": "Alex",
+                "job_role": "Software Engineer",
+                "interview_type": "technical",
+                "total_questions": "5",
+            },
+            follow_redirects=False,
+        )
+        session_id = self._extract_session_id(resp.headers.get("Location", ""))
+
+        # Post to chat API: answer readiness check -> AI asks Intro (Q0)
+        chat_resp = self.client.post(
+            f"/student/interviews/{session_id}/chat",
+            json={"answer": "I am ready to start the interview."},
+            content_type="application/json",
+        )
+        self.assertEqual(chat_resp.status_code, 200)
+        data = json.loads(chat_resp.data)
+        self.assertIn("current_question_number", data)
+        self.assertIn("total_questions", data)
+        self.assertIn("is_wrap_up", data)
+        self.assertEqual(data["total_questions"], 5)
+        self.assertEqual(data["current_question_number"], 0)
+        self.assertTrue(data.get("is_intro"))
+        self.assertFalse(data["is_wrap_up"])
+
+        # Second turn: answer intro -> AI asks actual Q1
+        chat_resp2 = self.client.post(
+            f"/student/interviews/{session_id}/chat",
+            json={"answer": "I am a software engineer with Python experience."},
+            content_type="application/json",
+        )
+        self.assertEqual(chat_resp2.status_code, 200)
+        data2 = json.loads(chat_resp2.data)
+        self.assertEqual(data2["current_question_number"], 1)
+        self.assertFalse(data2["is_wrap_up"])
+
+
+# ===========================================================================
+# TestIntroFeedback — Intro Randomisation & Intro Feedback separation
+# ===========================================================================
+
+class TestIntroFeedback(BaseTestCase):
+    """
+    Tests for:
+    1. Intro question randomisation: different sessions yield different intro templates.
+    2. Same session always yields the same intro template (deterministic/stable).
+    3. introduction_feedback is stored in InterviewReport and exposed via to_dict().
+    """
+
+    def _make_session(self, session_id_hint=None):
+        """Create a quick in-memory interview session object for testing conversation engine."""
+        from models.user import User
+        from models.interview_session import InterviewSession
+        # Register student then create a session via the real DB
+        s = {
+            "name": f"Intro Test User",
+            "email": f"intro_test_{session_id_hint or 'x'}@example.com",
+            "password": "TestPass@123",
+            "confirm_password": "TestPass@123",
+        }
+        self.client.post("/auth/register", data=s, follow_redirects=True)
+        self.client.post("/auth/login", data={"email": s["email"], "password": s["password"]}, follow_redirects=True)
+        resp = self.client.post(
+            "/student/interviews/new",
+            data={
+                "interviewer_gender": "male",
+                "interviewer_name": "TestBot",
+                "job_role": "Software Engineer",
+                "interview_type": "mixed",
+                "total_questions": "5",
+            },
+            follow_redirects=False,
+        )
+        loc = resp.headers.get("Location", "")
+        parts = [p for p in loc.split("/") if p.isdigit()]
+        return int(parts[-1]) if parts else None
+
+    def test_introduction_variants_differ_across_sessions(self):
+        """
+        Two different sessions should (statistically) receive different intro question phrasings.
+        We verify by checking that _seeded_choice produces different results for different IDs.
+        """
+        from services.conversation_engine import INTRODUCTION_VARIANTS, _seeded_choice
+        results = set()
+        for seed in range(20):
+            chosen = _seeded_choice(INTRODUCTION_VARIANTS, seed, offset=0)
+            results.add(chosen)
+        # With 20 different session IDs and 10 variants, we must see at least 3 distinct variants
+        self.assertGreaterEqual(len(results), 3, 
+            "Expected multiple distinct intro variants across different session IDs")
+
+    def test_same_session_intro_is_stable(self):
+        """
+        The same session_id always produces the exact same intro question variant
+        (deterministic across multiple calls).
+        """
+        from services.conversation_engine import INTRODUCTION_VARIANTS, _seeded_choice
+        for seed in [1, 42, 999, 12345]:
+            first  = _seeded_choice(INTRODUCTION_VARIANTS, seed, offset=0)
+            second = _seeded_choice(INTRODUCTION_VARIANTS, seed, offset=0)
+            third  = _seeded_choice(INTRODUCTION_VARIANTS, seed, offset=0)
+            self.assertEqual(first, second, f"Intro variant changed on second call for session_id={seed}")
+            self.assertEqual(first, third,  f"Intro variant changed on third call for session_id={seed}")
+
+    def test_get_intro_question_for_session_variety(self):
+        """
+        Verify that get_intro_question_for_session() for 5 different session IDs
+        produces at least 3 distinct opening phrases (Fix 1 verification).
+        """
+        from services.conversation_engine import get_intro_question_for_session
+        openings = set()
+        for sid in [1, 2, 3, 4, 5]:
+            q = get_intro_question_for_session(sid, "Software Engineer")
+            phrase = " ".join(q.split()[:4])
+            openings.add(phrase)
+        self.assertGreaterEqual(
+            len(openings), 3,
+            f"Expected at least 3 distinct opening phrases across 5 sessions, got {len(openings)}: {openings}"
+        )
+
+    def test_intro_feedback_stored_and_rendered(self):
+        """
+        Verify that InterviewReport.create() stores introduction_feedback as JSON,
+        _from_row() deserializes it correctly, and to_dict() exposes it.
+        """
+        from models.interview_report import InterviewReport
+        from models.interview_session import InterviewSession
+        from models.user import User
+        
+        with self.app.app_context():
+            # Create test user and session
+            email = "intro_fb_test@example.com"
+            user = User.get_by_email(email)
+            if not user:
+                user = User.create("Intro FB Tester", email, "TestPass@123")
+            
+            session_obj = InterviewSession.create(
+                user_id=user.id,
+                interviewer_gender="female",
+                interviewer_name="Sarah",
+                job_role="Data Analyst",
+                interview_type="general",
+                total_questions=5,
+            )
+
+            intro_payload = {
+                "transcript_summary": "The candidate introduced themselves as a data analyst with 3 years of experience.",
+                "strengths": ["Clear structure", "Good relevance to role"],
+                "improvements": ["Could be more specific about achievements", "Add quantifiable metrics"],
+                "overall_rating": "Good",
+                "detailed_feedback": "A solid introduction. The candidate demonstrated good communication skills."
+            }
+
+            report = InterviewReport.create(
+                session_id=session_obj.id,
+                technical_score=72,
+                communication_score=80,
+                overall_score=75,
+                confidence_level="High",
+                strengths=["Articulate", "Confident"],
+                weaknesses=["Lacked depth", "Too brief"],
+                suggestions=["Use STAR method", "Quantify achievements"],
+                analysis_available=True,
+                introduction_feedback=intro_payload,
+            )
+
+            # Verify stored and deserialized correctly
+            self.assertIsNotNone(report)
+            self.assertIsNotNone(report.introduction_feedback)
+            self.assertIsInstance(report.introduction_feedback, dict)
+            self.assertEqual(report.introduction_feedback["overall_rating"], "Good")
+            self.assertEqual(len(report.introduction_feedback["strengths"]), 2)
+            self.assertEqual(len(report.introduction_feedback["improvements"]), 2)
+
+            # Verify fetching from DB preserves the data
+            fetched = InterviewReport.get_by_session(session_obj.id)
+            self.assertIsNotNone(fetched)
+            self.assertIsNotNone(fetched.introduction_feedback)
+            self.assertEqual(fetched.introduction_feedback["overall_rating"], "Good")
+            self.assertEqual(
+                fetched.introduction_feedback["transcript_summary"],
+                intro_payload["transcript_summary"]
+            )
+
+            # Verify to_dict includes it
+            d = fetched.to_dict()
+            self.assertIn("introduction_feedback", d)
+            self.assertIsInstance(d["introduction_feedback"], dict)
+
+
+# ===========================================================================
 # RUNNER
 # ===========================================================================
 
@@ -840,6 +1219,8 @@ if __name__ == "__main__":
         TestAdminFlow,
         TestRouteIntegrity,
         TestPracticeMode,
+        TestInterviewCustomization,
+        TestIntroFeedback,
     ]:
         suite.addTests(loader.loadTestsFromTestCase(cls))
 

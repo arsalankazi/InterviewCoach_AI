@@ -29,6 +29,8 @@ class InterviewSession:
         job_role=None,
         status='setup',
         session_type='full_interview',
+        interview_type='mixed',
+        total_questions=8,
         created_at=None
     ):
         self.id = id
@@ -38,6 +40,8 @@ class InterviewSession:
         self.job_role = job_role
         self.status = status
         self.session_type = session_type
+        self.interview_type = interview_type
+        self.total_questions = total_questions
         self.created_at = created_at
 
     # ------------------------------------------------------------------
@@ -46,7 +50,8 @@ class InterviewSession:
 
     @classmethod
     def create(cls, user_id: int, interviewer_gender: str, interviewer_name: str, job_role: str,
-                session_type: str = 'full_interview'):
+                session_type: str = 'full_interview', interview_type: str = 'mixed',
+                total_questions: int = 8):
         """
         Insert a new interview session row with status='setup'.
         Returns the created InterviewSession instance.
@@ -57,18 +62,26 @@ class InterviewSession:
             interviewer_name:   Custom name given by the student.
             job_role:           Target job role for this session.
             session_type:       'full_interview' (default) or 'practice'.
+            interview_type:     'technical', 'general', or 'mixed' (default).
+            total_questions:    Number of questions for this session (default 8, min 3, max 20).
         """
         if session_type not in ('full_interview', 'practice'):
             raise ValueError(f"Invalid session_type '{session_type}'.")
+        if interview_type not in ('technical', 'general', 'mixed'):
+            raise ValueError(f"Invalid interview_type '{interview_type}'.")
+        if not (3 <= int(total_questions) <= 20):
+            raise ValueError("total_questions must be an integer between 3 and 20.")
+
+        total_questions = int(total_questions)
         db = get_db()
         cursor = db.cursor()
         cursor.execute(
             """
             INSERT INTO interview_sessions
-                (user_id, interviewer_gender, interviewer_name, job_role, status, session_type)
-            VALUES (?, ?, ?, ?, 'setup', ?);
+                (user_id, interviewer_gender, interviewer_name, job_role, status, session_type, interview_type, total_questions)
+            VALUES (?, ?, ?, ?, 'setup', ?, ?, ?);
             """,
-            (user_id, interviewer_gender, interviewer_name.strip(), job_role.strip(), session_type)
+            (user_id, interviewer_gender, interviewer_name.strip(), job_role.strip(), session_type, interview_type, total_questions)
         )
         db.commit()
         session_id = cursor.lastrowid
@@ -94,8 +107,8 @@ class InterviewSession:
         cursor.execute(
             """
             INSERT INTO interview_sessions
-                (user_id, interviewer_gender, interviewer_name, job_role, status, session_type)
-            VALUES (?, 'male', 'Practice Coach', ?, 'setup', 'practice');
+                (user_id, interviewer_gender, interviewer_name, job_role, status, session_type, interview_type, total_questions)
+            VALUES (?, 'male', 'Practice Coach', ?, 'setup', 'practice', 'technical', 5);
             """,
             (user_id, topic.strip())
         )
@@ -289,6 +302,8 @@ class InterviewSession:
                     s.job_role,
                     s.status,
                     s.session_type,
+                    s.interview_type,
+                    s.total_questions,
                     s.created_at AS session_created_at,
                     r.id AS report_id,
                     r.technical_score,
@@ -315,6 +330,8 @@ class InterviewSession:
                     s.job_role,
                     s.status,
                     s.session_type,
+                    s.interview_type,
+                    s.total_questions,
                     s.created_at AS session_created_at,
                     r.id AS report_id,
                     r.technical_score,
@@ -334,6 +351,7 @@ class InterviewSession:
         rows = cursor.fetchall()
         results = []
         for row in rows:
+            keys = row.keys() if hasattr(row, 'keys') else []
             results.append({
                 'session_id': row['session_id'],
                 'user_id': row['user_id'],
@@ -342,6 +360,8 @@ class InterviewSession:
                 'job_role': row['job_role'],
                 'status': row['status'],
                 'session_type': row['session_type'],
+                'interview_type': row['interview_type'] if 'interview_type' in keys else 'mixed',
+                'total_questions': row['total_questions'] if 'total_questions' in keys else 8,
                 'session_created_at': safe_format_datetime(row['session_created_at'], fmt='%Y-%m-%d %H:%M:%S', fallback=None),
                 'report_id': row['report_id'],
                 'technical_score': row['technical_score'],
@@ -361,6 +381,7 @@ class InterviewSession:
     @classmethod
     def _from_row(cls, row):
         """Construct an InterviewSession instance from a SQLite Row."""
+        keys = row.keys() if hasattr(row, 'keys') else []
         return cls(
             id=row['id'],
             user_id=row['user_id'],
@@ -368,7 +389,9 @@ class InterviewSession:
             interviewer_name=row['interviewer_name'],
             job_role=row['job_role'],
             status=row['status'],
-            session_type=row['session_type'] if 'session_type' in row.keys() else 'full_interview',
+            session_type=row['session_type'] if 'session_type' in keys else 'full_interview',
+            interview_type=row['interview_type'] if 'interview_type' in keys else 'mixed',
+            total_questions=row['total_questions'] if 'total_questions' in keys else 8,
             created_at=row['created_at']
         )
 
@@ -382,5 +405,7 @@ class InterviewSession:
             'job_role': self.job_role,
             'status': self.status,
             'session_type': self.session_type,
+            'interview_type': self.interview_type,
+            'total_questions': self.total_questions,
             'created_at': str(self.created_at) if self.created_at else None
         }

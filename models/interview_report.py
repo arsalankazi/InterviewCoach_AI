@@ -30,6 +30,7 @@ class InterviewReport:
         weaknesses=None,
         suggestions=None,
         analysis_available=True,
+        introduction_feedback=None,
         created_at=None
     ):
         self.id = id
@@ -42,6 +43,7 @@ class InterviewReport:
         self.weaknesses = weaknesses if weaknesses is not None else []
         self.suggestions = suggestions if suggestions is not None else []
         self.analysis_available = analysis_available
+        self.introduction_feedback = introduction_feedback  # dict or None
         self.created_at = created_at
 
     # ------------------------------------------------------------------
@@ -59,7 +61,8 @@ class InterviewReport:
         strengths: list,
         weaknesses: list,
         suggestions: list,
-        analysis_available: bool = True
+        analysis_available: bool = True,
+        introduction_feedback: dict = None
     ):
         """
         Insert a new interview report row with full analysis data.
@@ -83,8 +86,9 @@ class InterviewReport:
             """
             INSERT INTO interview_reports
                 (session_id, technical_score, communication_score, overall_score,
-                 confidence_level, strengths, weaknesses, suggestions, analysis_available)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                 confidence_level, strengths, weaknesses, suggestions, analysis_available,
+                 introduction_feedback)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """,
             (
                 session_id,
@@ -95,7 +99,8 @@ class InterviewReport:
                 json.dumps(strengths if isinstance(strengths, list) else []),
                 json.dumps(weaknesses if isinstance(weaknesses, list) else []),
                 json.dumps(suggestions if isinstance(suggestions, list) else []),
-                1 if analysis_available else 0
+                1 if analysis_available else 0,
+                json.dumps(introduction_feedback) if introduction_feedback else None
             )
         )
         db.commit()
@@ -241,6 +246,16 @@ class InterviewReport:
             except (json.JSONDecodeError, TypeError):
                 return []
 
+        def _safe_json_dict(raw):
+            if not raw:
+                return None
+            try:
+                parsed = json.loads(raw)
+                return parsed if isinstance(parsed, dict) else None
+            except (json.JSONDecodeError, TypeError):
+                return None
+
+        keys = row.keys() if hasattr(row, 'keys') else []
         return cls(
             id=row['id'],
             session_id=row['session_id'],
@@ -252,6 +267,7 @@ class InterviewReport:
             weaknesses=_safe_json_list(row['weaknesses']),
             suggestions=_safe_json_list(row['suggestions']),
             analysis_available=bool(row['analysis_available']),
+            introduction_feedback=_safe_json_dict(row['introduction_feedback']) if 'introduction_feedback' in keys else None,
             created_at=row['created_at']
         )
 
@@ -268,5 +284,6 @@ class InterviewReport:
             'weaknesses': self.weaknesses,
             'suggestions': self.suggestions,
             'analysis_available': self.analysis_available,
+            'introduction_feedback': self.introduction_feedback,
             'created_at': str(self.created_at) if self.created_at else None
         }

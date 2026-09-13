@@ -43,6 +43,10 @@ def _build_analysis_prompt(session, messages: list) -> str:
     Formats the full conversation transcript with labelled turns and
     appends a strict JSON output specification.
 
+    The prompt explicitly requests TWO evaluation sections:
+    - introduction_feedback: separate evaluation of the intro (Stage 2) response.
+    - question_breakdown: evaluation of all SUBSEQUENT interview questions only.
+
     Args:
         session:  InterviewSession instance (provides job_role, interviewer_name).
         messages: List of InterviewMessage instances in chronological order.
@@ -53,7 +57,7 @@ def _build_analysis_prompt(session, messages: list) -> str:
     job_role = session.job_role or 'Software Engineer'
     interviewer_name = session.interviewer_name or 'AI Interviewer'
 
-    # Format conversation transcript
+    # Format conversation transcript with numbered turns
     transcript_lines = []
     for msg in messages:
         sender = getattr(msg, 'sender', None)
@@ -65,12 +69,25 @@ def _build_analysis_prompt(session, messages: list) -> str:
 
     transcript_text = "\n\n".join(transcript_lines) if transcript_lines else "(No conversation recorded)"
 
+    total_questions = getattr(session, 'total_questions', 8) or 8
+
     prompt = f"""You are an expert technical recruiter and interview coach.
 Analyse the following mock interview transcript for a {job_role} position and evaluate the candidate's performance.
 
 --- BEGIN TRANSCRIPT ---
 {transcript_text}
 --- END TRANSCRIPT ---
+
+IMPORTANT STRUCTURAL RULES:
+- The transcript follows this stage order:
+  1. Stage 1: Greeting (AI only — ignore this for evaluation).
+  2. Stage 2: Introduction (AI asks candidate to introduce themselves → Candidate responds).
+     This is ALWAYS the FIRST question-answer pair after the greeting.
+     Evaluate this exclusively in "introduction_feedback".
+  3. Stage 3+: Actual interview questions (technical, behavioral, or mixed).
+     The candidate completed {total_questions} actual interview questions.
+     Therefore, the "question_breakdown" array MUST contain EXACTLY {total_questions} entries (one for each Stage 3+ actual question).
+     Do NOT include the Stage 2 introduction question in "question_breakdown".
 
 Based on the transcript above, produce a JSON object with EXACTLY these keys and value types:
 
@@ -82,31 +99,52 @@ Based on the transcript above, produce a JSON object with EXACTLY these keys and
   "strengths": ["<string>", "<string>"],
   "weaknesses": ["<string>", "<string>"],
   "suggestions": ["<string>", "<string>"],
+  "introduction_feedback": {{
+    "transcript_summary": "<1-2 sentence summary of what the candidate said in their introduction>",
+    "strengths": ["<strong point 1>", "<strong point 2>"],
+    "improvements": ["<improvement area 1>", "<improvement area 2>"],
+    "overall_rating": "<Excellent | Good | Average | Needs Work>",
+    "detailed_feedback": "<2-4 sentence detailed coaching feedback on the introduction quality, structure, confidence, and relevance to the {job_role} role>"
+  }},
   "question_breakdown": [
     {{
       "question": "<the interviewer's question text>",
       "student_answer": "<the candidate's answer>",
-      "ideal_answer": "<ideal, comprehensive model answer expected by a hiring manager>",
-      "feedback": "<specific constructive critique highlighting what was good and what was missing>",
-      "topic": "<topic category e.g. SQL Queries, Python Fundamentals, Architecture, Problem Solving>",
+      "ideal_answer": "<a sample good answer in 2-3 short, simple sentences that a student can easily learn and speak naturally>",
+      "feedback": "<clear and simple feedback in 2-3 short sentences on what was good and what was missing>",
+      "topic": "<topic category e.g. SQL Queries, Python Basics, Teamwork, Problem Solving>",
       "score": <integer 0-100 evaluating the candidate's answer>
     }}
   ]
 }}
 
+LANGUAGE & TONE DIRECTIVE — VERY IMPORTANT:
+- Write ALL text (strengths, weaknesses, suggestions, feedback, ideal_answer, introduction_feedback) in SIMPLE, everyday English.
+- Target audience: An average Indian college student who speaks English as a second language.
+- Rules:
+  * Keep sentences SHORT (maximum 15 to 20 words each).
+  * Use simple, common words (say 'use' not 'leverage', 'show' not 'demonstrate', 'make sure' not 'ensure', 'talk about' not 'articulate', 'fix' not 'mitigate').
+  * NO corporate buzzwords, NO fancy academic terms, NO idioms.
+  * Keep ideal_answer short (2-3 simple sentences). It should sound like a smart student speaking naturally, NOT a textbook or encyclopedia.
+  * Keep feedback direct and kind, explaining what worked and what to add next time.
+
 Scoring guidelines:
-- technical_score: Assess accuracy, depth, and relevance of technical answers for a {job_role} role.
-- communication_score: Assess clarity, structure, articulation, and professional tone.
+- technical_score: Assess correctness and relevance of technical answers for a {job_role} role.
+- communication_score: Assess clarity, sentence length, and confidence across the whole interview.
 - overall_score: Weighted combination (60% technical, 40% communication).
-- confidence_level: 'Low' if answers are vague/heavily hedged/very short; 'High' if answers are direct, detailed, and assertive; 'Moderate' otherwise.
-- strengths: 2 to 4 brief, specific positive observations (each under 15 words).
-- weaknesses: 2 to 4 brief, specific areas needing improvement (each under 15 words).
-- suggestions: 2 to 4 actionable, concrete improvement tips (each under 20 words).
-- question_breakdown: Extract EVERY question asked by the interviewer in the transcript where the candidate responded. Provide the question, the candidate's response, an ideal benchmark answer, concise actionable critique feedback, the technical topic category, and a score (0-100).
+- confidence_level: 'Low' if answers are vague or very short; 'High' if answers are direct and clear; 'Moderate' otherwise.
+- strengths: 2 to 4 brief, simple positive points (each under 15 words).
+- weaknesses: 2 to 4 brief, simple areas to improve (each under 15 words).
+- suggestions: 2 to 4 actionable, simple tips (each under 20 words).
+- introduction_feedback: Evaluate the Stage 2 introduction response ONLY. Do NOT repeat it in question_breakdown.
+- introduction_feedback.overall_rating: 'Excellent' if clear, specific, and confident; 'Good' if solid but could be clearer; 'Average' if too short or generic; 'Needs Work' if unclear or missing key details.
+- introduction_feedback.detailed_feedback: 2 to 3 short, simple sentences on how well the candidate introduced themselves and how to make it better.
+- question_breakdown: Extract EVERY question from Stage 3+ ONLY. Must contain exactly {total_questions} entries corresponding to the {total_questions} actual questions asked. Do NOT include the Stage 2 introduction question. Provide the question, candidate's response, simple sample answer (ideal_answer), simple feedback, topic, and score (0-100).
 
 CRITICAL RULES:
 - Return ONLY the raw JSON object. No markdown, no code fences, no explanation text.
 - All list fields (strengths, weaknesses, suggestions) must contain at least 2 items and no more than 4 items.
+- introduction_feedback.strengths and introduction_feedback.improvements must each have at least 2 items.
 - Ensure the JSON is completely valid and properly closed.
 """
     return prompt.strip()
@@ -185,15 +223,31 @@ def _validate_and_clean(raw: dict) -> dict | None:
                     'score': q_score
                 })
 
+    # Parse introduction_feedback (optional — graceful None if missing/malformed)
+    introduction_feedback = None
+    raw_intro = raw.get('introduction_feedback')
+    if isinstance(raw_intro, dict):
+        intro_rating = str(raw_intro.get('overall_rating', 'Average')).strip()
+        if intro_rating not in ('Excellent', 'Good', 'Average', 'Needs Work'):
+            intro_rating = 'Average'
+        introduction_feedback = {
+            'transcript_summary': str(raw_intro.get('transcript_summary', '')).strip(),
+            'strengths': _safe_list(raw_intro.get('strengths', []), max_items=4),
+            'improvements': _safe_list(raw_intro.get('improvements', []), max_items=4),
+            'overall_rating': intro_rating,
+            'detailed_feedback': str(raw_intro.get('detailed_feedback', '')).strip(),
+        }
+
     return {
-        'technical_score':     technical_score,
-        'communication_score': communication_score,
-        'overall_score':       overall_score,
-        'confidence_level':    confidence_level,
-        'strengths':           strengths,
-        'weaknesses':          weaknesses,
-        'suggestions':         suggestions,
-        'question_breakdown':  question_breakdown
+        'technical_score':       technical_score,
+        'communication_score':   communication_score,
+        'overall_score':         overall_score,
+        'confidence_level':      confidence_level,
+        'strengths':             strengths,
+        'weaknesses':            weaknesses,
+        'suggestions':           suggestions,
+        'question_breakdown':    question_breakdown,
+        'introduction_feedback': introduction_feedback,
     }
 
 

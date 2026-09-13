@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const interviewerGender = (roomWrapper.dataset.interviewerGender || 'male').toLowerCase();
     const studentName       = roomWrapper.dataset.studentName || 'Candidate';
     const jobRole           = roomWrapper.dataset.jobRole || 'the position';
+    const interviewType     = roomWrapper.dataset.interviewType || 'mixed';
+    const totalQuestions    = parseInt(roomWrapper.dataset.totalQuestions, 10) || 8;
     const isCompleted       = sessionStatus === 'completed';
 
     // ─────────────────────────────────────────────
@@ -41,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let isSubmitting      = false;
     let pendingAnswerText = null;
+    let isWrapUpTriggered = false;
 
     // ─────────────────────────────────────────────
     // Utilities
@@ -209,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
             AvatarAnimator.stopThinking();
             isSubmitting = false;
 
-            if (!isCompleted) {
+            if (!isCompleted && !isWrapUpTriggered) {
                 if (chatInput) {
                     chatInput.disabled = false;
                     chatInput.value = '';
@@ -227,9 +230,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 appendMessageBubble('ai', responseData.ai_message);
                 pendingAnswerText = null;
 
-                // #8: Update stage progress from API response
+                // Update stage progress from API response
                 if (responseData.stage) {
                     StageProgressManager.update(responseData.stage, responseData.stage_name || '');
+                }
+
+                // Update question counter and wrap-up status
+                if (typeof QuestionProgressManager !== 'undefined') {
+                    if (responseData.is_wrap_up) {
+                        isWrapUpTriggered = true;
+                    }
+                    QuestionProgressManager.update(
+                        responseData.current_question_number,
+                        responseData.total_questions,
+                        responseData.is_wrap_up
+                    );
                 }
             } else {
                 const err = (responseData && responseData.error) ? responseData.error : 'Unable to receive interviewer response.';
@@ -1042,6 +1057,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // =============================================================
+    // QuestionProgressManager — Tracks question counter (Question X of Y)
+    // and displays wrap-up CTA when question limit is reached.
+    // =============================================================
+    const QuestionProgressManager = (() => {
+        const currentQEl      = document.getElementById('current-q-num');
+        const totalQEl        = document.getElementById('total-q-num');
+        const labelEl         = document.getElementById('question-progress-label');
+        const wrapUpContainer = document.getElementById('interview-wrap-up-container');
+        const chatForm        = document.getElementById('chat-form');
+        const chatHelper      = document.getElementById('chat-input-helper');
+        let total             = totalQuestions;
+        let current           = 0;
+
+        function update(currentNum, totalNum, isWrapUp = false) {
+            if (totalNum) {
+                total = parseInt(totalNum, 10) || total;
+                if (totalQEl) totalQEl.textContent = String(total);
+            }
+            if (currentNum !== undefined && currentNum !== null) {
+                current = Math.min(total, Math.max(0, parseInt(currentNum, 10) || 0));
+                if (currentQEl) currentQEl.textContent = String(current);
+            }
+
+            if (isWrapUp) {
+                if (labelEl) {
+                    labelEl.innerHTML = `Completed: <strong>${total}</strong> of <strong>${total}</strong>`;
+                }
+                if (chatForm) chatForm.style.display = 'none';
+                if (chatHelper) chatHelper.style.display = 'none';
+                if (wrapUpContainer) wrapUpContainer.style.display = 'block';
+
+                // Complete the visual stage checklist to final state
+                if (typeof ChecklistProgressManager !== 'undefined') {
+                    ChecklistProgressManager.update(5);
+                }
+            } else if (current > 0) {
+                if (labelEl) {
+                    labelEl.innerHTML = `Question <strong id="current-q-num">${current}</strong> of <strong id="total-q-num">${total}</strong>`;
+                }
+            } else {
+                if (labelEl) {
+                    labelEl.innerHTML = `<span>Introduction</span>`;
+                }
+            }
+
+            // Sync Interviewer Details panel "Questions Asked" metric
+            const statQuestionsAsked = document.getElementById('stat-questions-asked');
+            if (statQuestionsAsked) {
+                statQuestionsAsked.textContent = String(current);
+            }
+        }
+
+        function getCurrent() { return current; }
+
+        return { update, getCurrent };
+    })();
+
+
+    // =============================================================
     // MODULE 10 POLISH — #10: TipsRotator
     // Cycles through 8 interview tips in the sidebar every 7s.
     // =============================================================
@@ -1188,8 +1262,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (elActiveStage)    elActiveStage.textContent    = stageLabels[currentStage] || `Stage ${currentStage}`;
             if (elPaceTime)       elPaceTime.textContent       = avgPace !== null ? String(avgPace) : '--';
 
-            // Also update Interviewer Details "Questions Asked"
-            if (elQuestionsAsked) elQuestionsAsked.textContent = String(aiMessageCount);
+            // Sync "Questions Asked" with the authoritative QuestionProgressManager counter.
+            // This ensures the sidebar stat always matches the "Completed X of Y" top badge.
+            if (elQuestionsAsked) {
+                const authoritative = (typeof QuestionProgressManager !== 'undefined')
+                    ? QuestionProgressManager.getCurrent()
+                    : (studentMessageCount >= 2 ? Math.min(totalQuestions, studentMessageCount - 1) : 0);
+                elQuestionsAsked.textContent = String(authoritative);
+            }
         }
 
         seedFromDom();
@@ -1369,6 +1449,13 @@ document.addEventListener('DOMContentLoaded', () => {
         analysisOverlay.classList.add('hidden');
         analysisOverlay.classList.remove('visible');
         analysisOverlay.style.display = 'none';
+    }
+
+    // Seed question progress on initial load
+    if (typeof QuestionProgressManager !== 'undefined') {
+        const studentTurns = chatContainer ? chatContainer.querySelectorAll('.message-student').length : 0;
+        const initialQ = studentTurns >= 2 ? Math.min(totalQuestions, studentTurns - 1) : 0;
+        QuestionProgressManager.update(initialQ, totalQuestions, isCompleted);
     }
 
     if (!isCompleted) {

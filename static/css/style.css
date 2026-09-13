@@ -3044,7 +3044,7 @@ a.skill-badge-more:hover {
    ========================================================= */
 .panels-grid-row {
   display: grid;
-  grid-template-columns: 260px 260px 1fr 280px;
+  grid-template-columns: 240px 240px 1fr 260px;
   gap: 1.25rem;
   width: 100%;
 }
@@ -4169,7 +4169,8 @@ a.skill-badge-more:hover {
 .message-turn {
   display: flex;
   gap: 0.85rem;
-  max-width: 82%;
+  max-width: 95%;
+  width: 100%;
 }
 
 .animate-bubble {
@@ -4220,6 +4221,8 @@ a.skill-badge-more:hover {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .message-sender-name {

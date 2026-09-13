@@ -31,7 +31,36 @@ def _initialize_database():
     else:
         # PostgreSQL / SQLAlchemy
         db.create_all()
+        _run_postgres_migrations()
         _ensure_postgres_defaults()
+
+
+def _run_postgres_migrations():
+    """Safely apply column additions and indexes for existing PostgreSQL database tables."""
+    statements = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS resume_filename VARCHAR(255) DEFAULT NULL;",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS resume_uploaded_at TIMESTAMP DEFAULT NULL;",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS extracted_skills TEXT DEFAULT NULL;",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed INTEGER NOT NULL DEFAULT 0;",
+        "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS session_type VARCHAR(30) NOT NULL DEFAULT 'full_interview';",
+        "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS interview_type VARCHAR(30) NOT NULL DEFAULT 'mixed';",
+        "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS total_questions INTEGER NOT NULL DEFAULT 8;",
+        "ALTER TABLE interview_reports ADD COLUMN IF NOT EXISTS introduction_feedback TEXT DEFAULT NULL;",
+        "CREATE INDEX IF NOT EXISTS idx_sessions_type ON interview_sessions(session_type);",
+        "CREATE INDEX IF NOT EXISTS idx_sessions_interview_type ON interview_sessions(interview_type);",
+    ]
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        for stmt in statements:
+            try:
+                cursor.execute(stmt)
+                conn.commit()
+            except Exception as stmt_err:
+                conn.rollback()
+                print(f"[PostgreSQL Migration Warning] Statement failed: {stmt} -> {stmt_err}")
+    except Exception as e:
+        print(f"[PostgreSQL Migration Error] Failed to run migrations: {e}")
 
 
 def _ensure_postgres_defaults():
@@ -44,6 +73,8 @@ def _ensure_postgres_defaults():
         cursor.execute("ALTER TABLE admins ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
         cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN status SET DEFAULT 'setup';")
         cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN session_type SET DEFAULT 'full_interview';")
+        cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN interview_type SET DEFAULT 'mixed';")
+        cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN total_questions SET DEFAULT 8;")
         cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
         cursor.execute("ALTER TABLE interview_messages ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
         cursor.execute("ALTER TABLE interview_reports ALTER COLUMN technical_score SET DEFAULT 0;")
@@ -121,8 +152,21 @@ def _run_sqlite_migrations():
             "ALTER TABLE interview_sessions "
             "ADD COLUMN session_type TEXT NOT NULL DEFAULT 'full_interview';"
         )
+    if 'interview_type' not in session_cols:
+        cursor.execute(
+            "ALTER TABLE interview_sessions "
+            "ADD COLUMN interview_type TEXT NOT NULL DEFAULT 'mixed';"
+        )
+    if 'total_questions' not in session_cols:
+        cursor.execute(
+            "ALTER TABLE interview_sessions "
+            "ADD COLUMN total_questions INTEGER NOT NULL DEFAULT 8;"
+        )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_sessions_type ON interview_sessions(session_type);"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sessions_interview_type ON interview_sessions(interview_type);"
     )
 
     # Ensure interview_messages table exists
@@ -155,6 +199,7 @@ def _run_sqlite_migrations():
             weaknesses          TEXT    NOT NULL DEFAULT '[]',
             suggestions         TEXT    NOT NULL DEFAULT '[]',
             analysis_available  INTEGER NOT NULL DEFAULT 1,
+            introduction_feedback TEXT   DEFAULT NULL,
             created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
@@ -162,6 +207,17 @@ def _run_sqlite_migrations():
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_reports_session ON interview_reports(session_id);"
     )
+
+    # Safe migration: add introduction_feedback if missing (for existing SQLite DBs)
+    cursor.execute("PRAGMA table_info(interview_reports);")
+    report_cols = [
+        row['name'] if isinstance(row, dict) or hasattr(row, 'keys') else row[1]
+        for row in cursor.fetchall()
+    ]
+    if 'introduction_feedback' not in report_cols:
+        cursor.execute(
+            "ALTER TABLE interview_reports ADD COLUMN introduction_feedback TEXT DEFAULT NULL;"
+        )
 
     # Ensure question_feedback table exists
     cursor.execute(
@@ -187,3 +243,20 @@ def _run_sqlite_migrations():
     )
 
     conn.commit()
+    print("[SQLite Migration] SQLite migrations applied successfully.")
+
+
+if __name__ == '__main__':
+    import sys
+    import os
+    root_dir = str(Path(__file__).resolve().parent.parent)
+    if root_dir not in sys.path:
+        sys.path.insert(0, root_dir)
+    from app import create_app
+
+    env_config = os.environ.get('FLASK_CONFIG', 'development')
+    app = create_app(env_config)
+    with app.app_context():
+        print(f"Running database initialization and migrations for config '{env_config}'...")
+        init_db()
+        print("Database schema and migrations completed successfully.")

@@ -138,12 +138,122 @@
                 </div>
             </div>
 
+            <!-- Step 4: Interview Type -->
+            <div class="setup-section">
+                <div class="setup-section-header">
+                    <span class="setup-step-badge">Step 4</span>
+                    <h2 class="setup-section-title">Select Interview Type</h2>
+                    <p class="setup-section-desc">Choose the focus and questioning style for your interview.</p>
+                </div>
+
+                <div class="persona-grid type-grid">
+                    <!-- Card 1: Technical Only -->
+                    <label class="persona-card {% if form_data.get('interview_type') == 'technical' %}selected{% endif %}" id="card-type-technical">
+                        <input 
+                            type="radio" 
+                            name="interview_type" 
+                            value="technical" 
+                            class="persona-radio" 
+                            {% if form_data.get('interview_type') == 'technical' %}checked{% endif %}
+                            onchange="selectInterviewType('technical')"
+                        >
+                        <div class="persona-radio-custom"></div>
+                        <div class="persona-avatar-wrapper avatar-male">
+                            <span class="persona-avatar-icon">🛠️</span>
+                        </div>
+                        <div class="persona-info">
+                            <h3 class="persona-name">Technical Only</h3>
+                            <span class="persona-tag persona-tag-male">Skill-Based</span>
+                            <p class="persona-desc">Role-specific technical and skill-based questions.</p>
+                        </div>
+                    </label>
+
+                    <!-- Card 2: General / HR -->
+                    <label class="persona-card {% if form_data.get('interview_type') == 'general' %}selected{% endif %}" id="card-type-general">
+                        <input 
+                            type="radio" 
+                            name="interview_type" 
+                            value="general" 
+                            class="persona-radio" 
+                            {% if form_data.get('interview_type') == 'general' %}checked{% endif %}
+                            onchange="selectInterviewType('general')"
+                        >
+                        <div class="persona-radio-custom"></div>
+                        <div class="persona-avatar-wrapper avatar-female">
+                            <span class="persona-avatar-icon">💬</span>
+                        </div>
+                        <div class="persona-info">
+                            <h3 class="persona-name">General / HR</h3>
+                            <span class="persona-tag persona-tag-female">Behavioral</span>
+                            <p class="persona-desc">Introduction, behavioral, and HR-style questions.</p>
+                        </div>
+                    </label>
+
+                    <!-- Card 3: Mixed (Both) -->
+                    <label class="persona-card {% if form_data.get('interview_type', 'mixed') == 'mixed' %}selected{% endif %}" id="card-type-mixed">
+                        <input 
+                            type="radio" 
+                            name="interview_type" 
+                            value="mixed" 
+                            class="persona-radio" 
+                            {% if form_data.get('interview_type', 'mixed') == 'mixed' %}checked{% endif %}
+                            onchange="selectInterviewType('mixed')"
+                        >
+                        <div class="persona-radio-custom"></div>
+                        <div class="persona-avatar-wrapper avatar-male">
+                            <span class="persona-avatar-icon">🎯</span>
+                        </div>
+                        <div class="persona-info">
+                            <h3 class="persona-name">Mixed (Both)</h3>
+                            <span class="persona-tag persona-tag-male">Recommended</span>
+                            <p class="persona-desc">Balanced technical and general questions.</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Step 5: Number of Questions -->
+            <div class="setup-section">
+                <div class="setup-section-header">
+                    <span class="setup-step-badge">Step 5</span>
+                    <h2 class="setup-section-title">Number of Questions</h2>
+                    <p class="setup-section-desc">Select how many questions the AI interviewer should ask.</p>
+                </div>
+
+                <div class="setup-field-group">
+                    <label for="total_questions" class="form-label">Total Questions <span class="required-star">*</span></label>
+                    <select name="total_questions" id="total_questions" class="form-input setup-select" onchange="handleQuestionCountChange(this.value)" required>
+                        <option value="5" {% if form_data.get('total_questions') == '5' %}selected{% endif %}>5 Questions (Quick)</option>
+                        <option value="8" {% if form_data.get('total_questions', '8') == '8' %}selected{% endif %}>8 Questions (Standard - Default)</option>
+                        <option value="10" {% if form_data.get('total_questions') == '10' %}selected{% endif %}>10 Questions (Comprehensive)</option>
+                        <option value="12" {% if form_data.get('total_questions') == '12' %}selected{% endif %}>12 Questions (In-Depth)</option>
+                        <option value="custom" {% if form_data.get('total_questions') == 'custom' %}selected{% endif %}>Custom…</option>
+                    </select>
+                </div>
+
+                <!-- Custom Question Count Input (Shown when 'Custom' is selected) -->
+                <div class="setup-field-group custom-questions-wrapper" id="custom-questions-group" style="{% if form_data.get('total_questions') != 'custom' %}display: none;{% endif %}">
+                    <label for="custom_questions" class="form-label">Please specify number of questions (3 - 20) <span class="required-star">*</span></label>
+                    <input 
+                        type="number" 
+                        name="custom_questions" 
+                        id="custom_questions" 
+                        class="form-input setup-input" 
+                        placeholder="e.g. 6" 
+                        min="3" 
+                        max="20"
+                        value="{{ form_data.get('custom_questions', '') }}" 
+                    >
+                    <span class="form-hint">Enter between 3 and 20 questions.</span>
+                </div>
+            </div>
+
             <!-- Notice Banner -->
             <div class="setup-info-banner">
                 <span class="setup-info-icon">💡</span>
                 <div class="setup-info-content">
                     <strong>Tailored Session:</strong>
-                    Your uploaded resume and detected skills will be combined with this configuration to formulate realistic interview questions.
+                    Your uploaded resume, detected skills, interview type, and target job role will be combined to formulate realistic interview questions.
                 </div>
             </div>
 
@@ -183,6 +293,16 @@ function selectPersona(gender, suggestedName) {
     }
 }
 
+function selectInterviewType(type) {
+    const cardTech = document.getElementById('card-type-technical');
+    const cardGen = document.getElementById('card-type-general');
+    const cardMixed = document.getElementById('card-type-mixed');
+
+    if (cardTech) cardTech.classList.toggle('selected', type === 'technical');
+    if (cardGen) cardGen.classList.toggle('selected', type === 'general');
+    if (cardMixed) cardMixed.classList.toggle('selected', type === 'mixed');
+}
+
 function setName(name) {
     const nameInput = document.getElementById('interviewer_name');
     if (nameInput) {
@@ -205,10 +325,28 @@ function handleRoleChange(value) {
     }
 }
 
+function handleQuestionCountChange(value) {
+    const customQGroup = document.getElementById('custom-questions-group');
+    const customQInput = document.getElementById('custom_questions');
+
+    if (value === 'custom') {
+        customQGroup.style.display = 'flex';
+        customQInput.setAttribute('required', 'required');
+        customQInput.focus();
+    } else {
+        customQGroup.style.display = 'none';
+        customQInput.removeAttribute('required');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const roleSelect = document.getElementById('job_role');
     if (roleSelect) {
         handleRoleChange(roleSelect.value);
+    }
+    const qSelect = document.getElementById('total_questions');
+    if (qSelect) {
+        handleQuestionCountChange(qSelect.value);
     }
 });
 </script>

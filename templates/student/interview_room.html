@@ -9,7 +9,9 @@
      data-interviewer-name="{{ interview_session.interviewer_name }}"
      data-interviewer-gender="{{ interview_session.interviewer_gender }}"
      data-student-name="{{ user.name }}"
-     data-job-role="{{ interview_session.job_role }}">
+     data-job-role="{{ interview_session.job_role }}"
+     data-interview-type="{{ interview_session.interview_type }}"
+     data-total-questions="{{ interview_session.total_questions }}">
 
     <!-- =========================================================
          #4 — 3-2-1 Countdown Overlay (shown only on new sessions)
@@ -50,10 +52,17 @@
             <div class="room-title-group">
                 <h1 class="room-main-title">Interview Room</h1>
                 <span class="room-role-pill">{{ interview_session.job_role }}</span>
+                <span class="room-type-pill" style="font-size: 0.78rem; padding: 0.2rem 0.6rem; border-radius: 9999px; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 600; text-transform: capitalize;">
+                    {{ interview_session.interview_type }} Mode
+                </span>
             </div>
         </div>
 
         <div class="top-bar-center">
+            <div class="top-question-badge" id="top-question-badge" title="Interview Question Progress" style="display: flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.85rem; border-radius: 9999px; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(148, 163, 184, 0.2); font-size: 0.85rem; color: #f8fafc;">
+                <span class="q-icon">🎯</span>
+                <span id="question-progress-label"><span>Introduction</span></span>
+            </div>
             <div class="top-timer-badge" title="Elapsed interview duration">
                 <span class="timer-icon">⏱️</span>
                 <span id="interview-timer" class="timer-value" aria-label="Elapsed interview time">00:00</span>
@@ -348,7 +357,7 @@
                 <div class="interviewer-stats-list">
                     <div class="interviewer-stat-item">
                         <span class="stat-label">Questions Asked</span>
-                        <span class="stat-value font-mono" id="stat-questions-asked">1</span>
+                        <span class="stat-value font-mono" id="stat-questions-asked">0</span>
                     </div>
                     <div class="interviewer-stat-item">
                         <span class="stat-label">Candidate</span>
@@ -438,6 +447,18 @@
                     <!-- Chat Bottom Input Bar -->
                     <div class="chat-input-wrapper">
                         {% if interview_session.status != 'completed' %}
+                            <!-- Wrap-up Action Box (Shown when AI finishes all questions) -->
+                            <div id="interview-wrap-up-container" class="wrap-up-container" style="display: none; width: 100%; text-align: center; padding: 1.25rem 1rem; background: rgba(99, 102, 241, 0.12); border: 1.5px solid rgba(99, 102, 241, 0.35); border-radius: 12px; margin-bottom: 0.5rem; animation: fadeIn 0.4s ease-out;">
+                                <div style="font-size: 1.5rem; margin-bottom: 0.35rem;">🏁</div>
+                                <h4 style="margin: 0 0 0.35rem 0; font-size: 1.05rem; font-weight: 700; color: #f8fafc;">Interview Questions Completed</h4>
+                                <p style="margin: 0 0 1rem 0; font-size: 0.85rem; color: #cbd5e1;">All interview questions have been completed. Generate your comprehensive AI scorecard and feedback report.</p>
+                                <form action="{{ url_for('student.end_interview', session_id=interview_session.id) }}" method="POST" onsubmit="return confirmEndInterview(event);" style="display: inline-block;">
+                                    <button type="submit" class="btn btn-primary" id="btn-wrapup-end" style="padding: 0.75rem 1.75rem; font-size: 0.95rem; font-weight: 700; background: linear-gradient(135deg, #6366f1, #4f46e5); border: none; border-radius: 8px; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4); cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;">
+                                        <span>📊</span> End Interview &amp; Get Feedback
+                                    </button>
+                                </form>
+                            </div>
+
                             <form id="chat-form" class="chat-form" onsubmit="return false;">
                                 <div class="input-container">
                                     <textarea
@@ -455,7 +476,7 @@
                                     </button>
                                 </div>
                             </form>
-                            <div class="chat-input-helper">
+                            <div class="chat-input-helper" id="chat-input-helper">
                                 <span><kbd>Enter ↵</kbd> send</span>
                                 <span class="helper-separator">•</span>
                                 <span id="mic-listening-badge" role="status" aria-live="polite">

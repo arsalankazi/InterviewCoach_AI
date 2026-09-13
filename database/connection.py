@@ -53,6 +53,8 @@ class InterviewSessionModel(db.Model):
     job_role = db.Column(db.String(150), nullable=False)
     status = db.Column(db.String(20), default='setup', server_default='setup', nullable=False)
     session_type = db.Column(db.String(30), default='full_interview', server_default='full_interview', nullable=False, index=True)
+    interview_type = db.Column(db.String(30), default='mixed', server_default='mixed', nullable=False, index=True)
+    total_questions = db.Column(db.Integer, default=8, server_default='8', nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, server_default=func.now())
 
 
@@ -77,6 +79,7 @@ class InterviewReportModel(db.Model):
     weaknesses = db.Column(db.Text, default='[]', server_default="'[]'", nullable=False)
     suggestions = db.Column(db.Text, default='[]', server_default="'[]'", nullable=False)
     analysis_available = db.Column(db.Integer, default=1, server_default='1', nullable=False)
+    introduction_feedback = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, server_default=func.now())
 
 

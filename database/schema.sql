@@ -32,6 +32,10 @@ CREATE TABLE IF NOT EXISTS interview_sessions (
     status             TEXT    NOT NULL DEFAULT 'setup'
                                CHECK(status IN ('setup', 'in_progress', 'completed')),
     session_type       TEXT    DEFAULT 'full_interview' NOT NULL,
+    interview_type     TEXT    DEFAULT 'mixed' NOT NULL
+                               CHECK(interview_type IN ('technical', 'general', 'mixed')),
+    total_questions    INTEGER DEFAULT 8 NOT NULL
+                               CHECK(total_questions >= 3 AND total_questions <= 20),
     created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -56,6 +60,7 @@ CREATE TABLE IF NOT EXISTS interview_reports (
     weaknesses          TEXT    NOT NULL DEFAULT '[]',
     suggestions         TEXT    NOT NULL DEFAULT '[]',
     analysis_available  INTEGER NOT NULL DEFAULT 1,
+    introduction_feedback TEXT    DEFAULT NULL,
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

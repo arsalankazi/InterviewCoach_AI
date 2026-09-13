@@ -406,10 +406,13 @@ def interview_setup():
         return redirect(url_for('auth.logout'))
 
     if request.method == 'POST':
-        gender = request.form.get('interviewer_gender', '').strip()
-        name   = request.form.get('interviewer_name', '').strip()
-        role   = request.form.get('job_role', '').strip()
-        custom = request.form.get('custom_role', '').strip()
+        gender         = request.form.get('interviewer_gender', '').strip()
+        name           = request.form.get('interviewer_name', '').strip()
+        role           = request.form.get('job_role', '').strip()
+        custom         = request.form.get('custom_role', '').strip()
+        interview_type = request.form.get('interview_type', 'mixed').strip()
+        total_q_raw    = request.form.get('total_questions', '8').strip()
+        custom_q_raw   = request.form.get('custom_questions', '').strip()
 
         errors = []
 
@@ -437,6 +440,29 @@ def interview_setup():
             errors.append("Please select a valid job role from the list.")
             resolved_role = ''
 
+        # ── Validate interview type ──────────────────────────────────────
+        if interview_type not in ('technical', 'general', 'mixed'):
+            errors.append("Please select a valid interview type (Technical, General/HR, or Mixed).")
+            interview_type = 'mixed'
+
+        # ── Validate total questions ─────────────────────────────────────
+        if total_q_raw == 'custom':
+            try:
+                resolved_total_q = int(custom_q_raw)
+                if not (3 <= resolved_total_q <= 20):
+                    errors.append("Custom number of questions must be between 3 and 20.")
+            except (ValueError, TypeError):
+                errors.append("Please enter a valid number of questions between 3 and 20.")
+                resolved_total_q = 8
+        else:
+            try:
+                resolved_total_q = int(total_q_raw)
+                if not (3 <= resolved_total_q <= 20):
+                    errors.append("Number of questions must be between 3 and 20.")
+            except (ValueError, TypeError):
+                errors.append("Please select a valid number of questions.")
+                resolved_total_q = 8
+
         if errors:
             for msg in errors:
                 flash(msg, "error")
@@ -452,7 +478,9 @@ def interview_setup():
             user_id=user.id,
             interviewer_gender=gender,
             interviewer_name=name,
-            job_role=resolved_role
+            job_role=resolved_role,
+            interview_type=interview_type,
+            total_questions=resolved_total_q
         )
 
         flash(
@@ -496,6 +524,11 @@ def interview_room(session_id: int):
     if interview_session.user_id != user.id:
         flash("You do not have permission to access this interview session.", "error")
         return redirect(url_for('student.dashboard'))
+
+    # Redirect completed interviews to the results page (prevents reopening an ended room)
+    if interview_session.status == 'completed':
+        flash("This interview has already been completed. Here are your performance results.", "info")
+        return redirect(url_for('student.interview_results', session_id=session_id))
 
     # Retrieve existing message turns for this session
     messages = InterviewMessage.get_by_session(session_id)
@@ -556,7 +589,8 @@ def end_interview(session_id: int):
             strengths=analysis['strengths'],
             weaknesses=analysis['weaknesses'],
             suggestions=analysis['suggestions'],
-            analysis_available=True
+            analysis_available=True,
+            introduction_feedback=analysis.get('introduction_feedback')
         )
 
         # Persist granular question-by-question feedback if extracted
@@ -691,6 +725,9 @@ def interview_chat(session_id: int):
         "session_id": int,
         "status": "in_progress",
         "message_count": int,
+        "current_question_number": int,
+        "total_questions": int,
+        "is_wrap_up": bool,
         "error": str | None
     }
     """
@@ -1020,7 +1057,8 @@ def end_practice(session_id: int):
             strengths=analysis['strengths'],
             weaknesses=analysis['weaknesses'],
             suggestions=analysis['suggestions'],
-            analysis_available=True
+            analysis_available=True,
+            introduction_feedback=analysis.get('introduction_feedback')
         )
         if analysis.get('question_breakdown'):
             try:

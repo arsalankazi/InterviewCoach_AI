@@ -187,8 +187,8 @@
             <div class="feedback-card-header">
                 <div class="feedback-icon feedback-icon-green">✨</div>
                 <div>
-                    <h3 class="feedback-title">Key Strengths</h3>
-                    <p class="feedback-subtitle">What you performed well on during this interview</p>
+                    <h3 class="feedback-title">What You Did Well</h3>
+                    <p class="feedback-subtitle">Things you did nicely in this interview</p>
                 </div>
             </div>
             {% if report.strengths %}
@@ -210,8 +210,8 @@
             <div class="feedback-card-header">
                 <div class="feedback-icon feedback-icon-amber">⚠️</div>
                 <div>
-                    <h3 class="feedback-title">Areas for Growth</h3>
-                    <p class="feedback-subtitle">Aspects where your answers could be sharper</p>
+                    <h3 class="feedback-title">Things to Improve</h3>
+                    <p class="feedback-subtitle">Parts where your answers could be better</p>
                 </div>
             </div>
             {% if report.weaknesses %}
@@ -233,8 +233,8 @@
             <div class="feedback-card-header">
                 <div class="feedback-icon feedback-icon-blue">💡</div>
                 <div>
-                    <h3 class="feedback-title">Actionable Recommendations</h3>
-                    <p class="feedback-subtitle">Step-by-step pointers to refine before your next real-world interview</p>
+                    <h3 class="feedback-title">Tips for Your Next Interview</h3>
+                    <p class="feedback-subtitle">Simple advice to keep in mind for your next interview</p>
                 </div>
             </div>
             {% if report.suggestions %}
@@ -253,6 +253,101 @@
     </div>
 
     <!-- =========================================================
+         Introduction & Self-Pitch Feedback Section
+         Shown only when AI analysis produced an introduction_feedback block.
+         ========================================================= -->
+    {% if report and report.introduction_feedback %}
+    {% set intro_fb = report.introduction_feedback %}
+    <div class="results-card intro-feedback-card" id="intro-feedback-section">
+        <div class="q-breakdown-header">
+            <div class="q-breakdown-title-wrap">
+                <div class="feedback-icon" style="font-size: 1.6rem;">🎤</div>
+                <div>
+                    <div class="q-breakdown-title-row">
+                        <h3 class="feedback-title">Introduction &amp; Self-Pitch Feedback</h3>
+                        {% set rating = intro_fb.overall_rating or 'Average' %}
+                        {% if rating == 'Excellent' %}
+                            <span class="q-count-badge" style="background: rgba(16,185,129,0.15); color: #34d399; border-color: rgba(16,185,129,0.3);">⭐ {{ rating }}</span>
+                        {% elif rating == 'Good' %}
+                            <span class="q-count-badge" style="background: rgba(99,102,241,0.15); color: #818cf8; border-color: rgba(99,102,241,0.3);">✅ {{ rating }}</span>
+                        {% elif rating == 'Average' %}
+                            <span class="q-count-badge" style="background: rgba(234,179,8,0.15); color: #fbbf24; border-color: rgba(234,179,8,0.3);">⚡ {{ rating }}</span>
+                        {% else %}
+                            <span class="q-count-badge" style="background: rgba(239,68,68,0.15); color: #f87171; border-color: rgba(239,68,68,0.3);">⚠️ {{ rating }}</span>
+                        {% endif %}
+                    </div>
+                    <p class="feedback-subtitle">Dedicated evaluation of your opening introduction and self-pitch</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="intro-feedback-body" style="padding: 1.5rem;">
+            <!-- Transcript Summary -->
+            {% if intro_fb.transcript_summary %}
+            <div class="intro-summary-block" style="
+                background: rgba(99,102,241,0.08);
+                border: 1px solid rgba(99,102,241,0.2);
+                border-radius: 10px;
+                padding: 1rem 1.2rem;
+                margin-bottom: 1.25rem;
+            ">
+                <div style="font-size: 0.75rem; font-weight: 700; color: #818cf8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem;">📋 What You Said</div>
+                <p style="color: #cbd5e1; font-size: 0.92rem; margin: 0; line-height: 1.65;">{{ intro_fb.transcript_summary }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Strengths & Improvements Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <!-- Strengths -->
+                <div class="feedback-section-card" style="
+                    background: rgba(16,185,129,0.05);
+                    border: 1px solid rgba(16,185,129,0.2);
+                    border-radius: 10px;
+                    padding: 1rem 1.2rem;
+                ">
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #34d399; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">✅ Strengths</div>
+                    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem;">
+                        {% for s in intro_fb.strengths %}
+                        <li style="display: flex; align-items: flex-start; gap: 0.4rem; color: #a7f3d0; font-size: 0.88rem; line-height: 1.5;">
+                            <span style="color: #34d399; flex-shrink: 0; margin-top: 0.1rem;">•</span>{{ s }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- Improvements -->
+                <div class="feedback-section-card" style="
+                    background: rgba(234,179,8,0.05);
+                    border: 1px solid rgba(234,179,8,0.2);
+                    border-radius: 10px;
+                    padding: 1rem 1.2rem;
+                ">
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">💡 Areas to Improve</div>
+                    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem;">
+                        {% for i in intro_fb.improvements %}
+                        <li style="display: flex; align-items: flex-start; gap: 0.4rem; color: #fde68a; font-size: 0.88rem; line-height: 1.5;">
+                            <span style="color: #fbbf24; flex-shrink: 0; margin-top: 0.1rem;">•</span>{{ i }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Detailed Coaching Feedback -->
+            {% if intro_fb.detailed_feedback %}
+            <div class="q-block q-block-critique" style="margin-bottom: 0;">
+                <div class="q-block-header">
+                    <span class="q-block-icon">🧑‍🏫</span>
+                    <span class="q-block-label">Coach's Detailed Feedback</span>
+                </div>
+                <div class="q-block-text">{{ intro_fb.detailed_feedback }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- =========================================================
          Question-Level Feedback & Breakdown Accordion Section
          ========================================================= -->
     {% if question_feedback and question_feedback|length > 0 %}
@@ -265,7 +360,7 @@
                         <h3 class="feedback-title">Question-by-Question Breakdown</h3>
                         <span class="q-count-badge">{{ question_feedback|length }} Question{% if question_feedback|length != 1 %}s{% endif %} Evaluated</span>
                     </div>
-                    <p class="feedback-subtitle">Detailed evaluation of each response, benchmark model answers, and targeted critique</p>
+                    <p class="feedback-subtitle">See how you answered each question, a sample good answer, and simple tips to improve</p>
                 </div>
             </div>
             <div class="q-breakdown-actions">
@@ -299,7 +394,7 @@
                         <div class="q-body-content">
                             <!-- Full Question Block -->
                             <div class="q-full-question-wrap">
-                                <span class="q-block-label label-question">📌 Question Prompt</span>
+                                <span class="q-block-label label-question">📌 Question</span>
                                 <div class="q-prompt-text">{{ q.question_text }}</div>
                             </div>
 
@@ -308,7 +403,7 @@
                                 <div class="q-block q-block-student">
                                     <div class="q-block-header">
                                         <span class="q-block-icon">👤</span>
-                                        <span class="q-block-label">Your Response</span>
+                                        <span class="q-block-label">Your Answer</span>
                                     </div>
                                     <div class="q-block-text">
                                         {% if q.student_answer %}
@@ -323,7 +418,7 @@
                                 <div class="q-block q-block-ideal">
                                     <div class="q-block-header">
                                         <span class="q-block-icon">⭐</span>
-                                        <span class="q-block-label">Ideal Benchmark Answer</span>
+                                        <span class="q-block-label">A Good Answer Would Be</span>
                                     </div>
                                     <div class="q-block-text">
                                         {{ q.ideal_answer }}
@@ -335,7 +430,7 @@
                             <div class="q-block q-block-critique">
                                 <div class="q-block-header">
                                     <span class="q-block-icon">💡</span>
-                                    <span class="q-block-label">Coach Critique &amp; Improvement Tips</span>
+                                    <span class="q-block-label">What You Can Improve</span>
                                 </div>
                                 <div class="q-block-text">
                                     {{ q.feedback_text }}
