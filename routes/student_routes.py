@@ -899,6 +899,11 @@ def practice_setup():
     if request.method == 'POST':
         topic_choice = request.form.get('topic', '').strip()
         custom_topic = request.form.get('custom_topic', '').strip()
+        difficulty_level = request.form.get('difficulty_level', 'medium').strip().lower()
+
+        # Validate difficulty level; fallback gracefully
+        if difficulty_level not in ('easy', 'medium', 'hard', 'adaptive'):
+            difficulty_level = 'medium'
 
         # Resolve the final topic string
         if topic_choice == '__custom__':
@@ -906,11 +911,28 @@ def practice_setup():
         else:
             resolved_topic = topic_choice
 
+        # Parse total_questions
+        total_questions_raw = request.form.get('total_questions', '6').strip()
+        if total_questions_raw == 'custom':
+            custom_q = request.form.get('custom_questions', '').strip()
+            try:
+                total_questions = int(custom_q)
+            except ValueError:
+                total_questions = 6
+        else:
+            try:
+                total_questions = int(total_questions_raw)
+            except ValueError:
+                total_questions = 6
+
         errors = []
         if not resolved_topic:
             errors.append("Please select a topic or enter a custom one.")
         elif len(resolved_topic) > 80:
             errors.append("Topic must be 80 characters or fewer.")
+
+        if total_questions < 3 or total_questions > 20:
+            errors.append("Total questions must be between 3 and 20.")
 
         if errors:
             for msg in errors:
@@ -925,7 +947,9 @@ def practice_setup():
         # Create practice session (topic stored in job_role column)
         practice_session = InterviewSession.create_practice(
             user_id=user.id,
-            topic=resolved_topic
+            topic=resolved_topic,
+            difficulty_level=difficulty_level,
+            total_questions=total_questions
         )
 
         flash(f"Practice session on \'{resolved_topic}\' started!", "success")
@@ -965,6 +989,11 @@ def practice_room(session_id: int):
         flash("This is not a practice session.", "error")
         return redirect(url_for('student.interview_room', session_id=session_id))
 
+    # Redirect completed practice sessions to the results page (prevents reopening an ended room)
+    if practice_session.status == 'completed':
+        flash("This practice session has already been completed. Here are your performance results.", "info")
+        return redirect(url_for('student.interview_results', session_id=session_id))
+
     messages = InterviewMessage.get_by_session(session_id)
 
     return render_template(
@@ -972,7 +1001,8 @@ def practice_room(session_id: int):
         user=user,
         practice_session=practice_session,
         messages=messages,
-        topic=practice_session.job_role
+        topic=practice_session.job_role,
+        difficulty_level=getattr(practice_session, 'difficulty_level', 'medium') or 'medium'
     )
 
 
@@ -1002,6 +1032,16 @@ def practice_chat(session_id: int):
 
     if practice_session.session_type != 'practice':
         return jsonify({"success": False, "error": "Not a practice session."}), 400
+
+    if practice_session.status == 'completed':
+        return jsonify({
+            "success": True,
+            "ai_message": "This practice drill has already ended. Redirecting to your report...",
+            "is_wrap_up": True,
+            "session_id": session_id,
+            "status": "completed",
+            "session_type": "practice"
+        }), 200
 
     data = request.get_json(silent=True) or {}
     student_answer = data.get('answer') if data.get('answer') is not None else request.form.get('answer')

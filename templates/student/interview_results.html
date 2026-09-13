@@ -7,11 +7,30 @@
     <!-- Header Banner -->
     <div class="results-header-card">
         <div class="results-header-left">
+            {% if interview_session.session_type == 'practice' %}
+            <div class="welcome-badge" style="background: linear-gradient(135deg,#d97706,#92400e); color:#fef3c7;">Practice Drill Report</div>
+            <h1 class="results-title">Practice Session Analysis</h1>
+            <p class="results-subtitle">
+                Topic: <strong>{{ interview_session.job_role }}</strong>
+                &bull;
+                {%- set _diff = interview_session.difficulty_level or 'medium' -%}
+                {%- if _diff == 'easy' -%}
+                <span style="display:inline-flex;align-items:center;gap:0.25rem;background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.4);font-size:0.75rem;font-weight:700;padding:0.15rem 0.55rem;border-radius:99px;margin-left:0.25rem;">🟢 Easy</span>
+                {%- elif _diff == 'hard' -%}
+                <span style="display:inline-flex;align-items:center;gap:0.25rem;background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.4);font-size:0.75rem;font-weight:700;padding:0.15rem 0.55rem;border-radius:99px;margin-left:0.25rem;">🔴 Hard</span>
+                {%- elif _diff == 'adaptive' -%}
+                <span style="display:inline-flex;align-items:center;gap:0.25rem;background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.4);font-size:0.75rem;font-weight:700;padding:0.15rem 0.55rem;border-radius:99px;margin-left:0.25rem;">🎯 Adaptive</span>
+                {%- else -%}
+                <span style="display:inline-flex;align-items:center;gap:0.25rem;background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);font-size:0.75rem;font-weight:700;padding:0.15rem 0.55rem;border-radius:99px;margin-left:0.25rem;">🟡 Medium</span>
+                {%- endif -%}
+            </p>
+            {% else %}
             <div class="welcome-badge">Performance Report</div>
             <h1 class="results-title">Interview Analysis &amp; Feedback</h1>
             <p class="results-subtitle">
                 Target Role: <strong>{{ interview_session.job_role }}</strong> &bull; Interviewer: <strong>{{ interview_session.interviewer_name }}</strong>
             </p>
+            {% endif %}
         </div>
         <div class="results-header-right">
             <span class="status-pill status-pill-success">Completed</span>

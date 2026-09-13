@@ -31,6 +31,7 @@ class InterviewSession:
         session_type='full_interview',
         interview_type='mixed',
         total_questions=8,
+        difficulty_level='medium',
         created_at=None
     ):
         self.id = id
@@ -42,6 +43,7 @@ class InterviewSession:
         self.session_type = session_type
         self.interview_type = interview_type
         self.total_questions = total_questions
+        self.difficulty_level = difficulty_level
         self.created_at = created_at
 
     # ------------------------------------------------------------------
@@ -51,7 +53,7 @@ class InterviewSession:
     @classmethod
     def create(cls, user_id: int, interviewer_gender: str, interviewer_name: str, job_role: str,
                 session_type: str = 'full_interview', interview_type: str = 'mixed',
-                total_questions: int = 8):
+                total_questions: int = 8, difficulty_level: str = 'medium'):
         """
         Insert a new interview session row with status='setup'.
         Returns the created InterviewSession instance.
@@ -64,6 +66,7 @@ class InterviewSession:
             session_type:       'full_interview' (default) or 'practice'.
             interview_type:     'technical', 'general', or 'mixed' (default).
             total_questions:    Number of questions for this session (default 8, min 3, max 20).
+            difficulty_level:   'easy', 'medium' (default), 'hard', or 'adaptive'.
         """
         if session_type not in ('full_interview', 'practice'):
             raise ValueError(f"Invalid session_type '{session_type}'.")
@@ -71,6 +74,8 @@ class InterviewSession:
             raise ValueError(f"Invalid interview_type '{interview_type}'.")
         if not (3 <= int(total_questions) <= 20):
             raise ValueError("total_questions must be an integer between 3 and 20.")
+        if difficulty_level not in ('easy', 'medium', 'hard', 'adaptive'):
+            difficulty_level = 'medium'
 
         total_questions = int(total_questions)
         db = get_db()
@@ -78,17 +83,17 @@ class InterviewSession:
         cursor.execute(
             """
             INSERT INTO interview_sessions
-                (user_id, interviewer_gender, interviewer_name, job_role, status, session_type, interview_type, total_questions)
-            VALUES (?, ?, ?, ?, 'setup', ?, ?, ?);
+                (user_id, interviewer_gender, interviewer_name, job_role, status, session_type, interview_type, total_questions, difficulty_level)
+            VALUES (?, ?, ?, ?, 'setup', ?, ?, ?, ?);
             """,
-            (user_id, interviewer_gender, interviewer_name.strip(), job_role.strip(), session_type, interview_type, total_questions)
+            (user_id, interviewer_gender, interviewer_name.strip(), job_role.strip(), session_type, interview_type, total_questions, difficulty_level)
         )
         db.commit()
         session_id = cursor.lastrowid
         return cls.get_by_id(session_id)
 
     @classmethod
-    def create_practice(cls, user_id: int, topic: str):
+    def create_practice(cls, user_id: int, topic: str, difficulty_level: str = 'medium', total_questions: int = 6):
         """
         Insert a new quick-practice session row.
         Uses 'Practice Coach' as interviewer name and 'male' as gender
@@ -96,21 +101,27 @@ class InterviewSession:
         The topic is stored in the job_role column.
 
         Args:
-            user_id: FK reference to the users table.
-            topic:   The practice topic / skill name chosen by the student.
+            user_id:          FK reference to the users table.
+            topic:            The practice topic / skill name chosen by the student.
+            difficulty_level: 'easy', 'medium' (default), 'hard', or 'adaptive'.
+            total_questions:  Total number of questions for the practice drill (3-20, default 6).
 
         Returns:
             The created InterviewSession instance with session_type='practice'.
         """
+        if difficulty_level not in ('easy', 'medium', 'hard', 'adaptive'):
+            difficulty_level = 'medium'
+        if not isinstance(total_questions, int) or total_questions < 3 or total_questions > 20:
+            total_questions = 6
         db = get_db()
         cursor = db.cursor()
         cursor.execute(
             """
             INSERT INTO interview_sessions
-                (user_id, interviewer_gender, interviewer_name, job_role, status, session_type, interview_type, total_questions)
-            VALUES (?, 'male', 'Practice Coach', ?, 'setup', 'practice', 'technical', 5);
+                (user_id, interviewer_gender, interviewer_name, job_role, status, session_type, interview_type, total_questions, difficulty_level)
+            VALUES (?, 'male', 'Practice Coach', ?, 'setup', 'practice', 'technical', ?, ?);
             """,
-            (user_id, topic.strip())
+            (user_id, topic.strip(), total_questions, difficulty_level)
         )
         db.commit()
         session_id = cursor.lastrowid
@@ -304,6 +315,7 @@ class InterviewSession:
                     s.session_type,
                     s.interview_type,
                     s.total_questions,
+                    s.difficulty_level,
                     s.created_at AS session_created_at,
                     r.id AS report_id,
                     r.technical_score,
@@ -332,6 +344,7 @@ class InterviewSession:
                     s.session_type,
                     s.interview_type,
                     s.total_questions,
+                    s.difficulty_level,
                     s.created_at AS session_created_at,
                     r.id AS report_id,
                     r.technical_score,
@@ -362,6 +375,7 @@ class InterviewSession:
                 'session_type': row['session_type'],
                 'interview_type': row['interview_type'] if 'interview_type' in keys else 'mixed',
                 'total_questions': row['total_questions'] if 'total_questions' in keys else 8,
+                'difficulty_level': row['difficulty_level'] if 'difficulty_level' in keys else 'medium',
                 'session_created_at': safe_format_datetime(row['session_created_at'], fmt='%Y-%m-%d %H:%M:%S', fallback=None),
                 'report_id': row['report_id'],
                 'technical_score': row['technical_score'],
@@ -392,6 +406,7 @@ class InterviewSession:
             session_type=row['session_type'] if 'session_type' in keys else 'full_interview',
             interview_type=row['interview_type'] if 'interview_type' in keys else 'mixed',
             total_questions=row['total_questions'] if 'total_questions' in keys else 8,
+            difficulty_level=row['difficulty_level'] if 'difficulty_level' in keys else 'medium',
             created_at=row['created_at']
         )
 
@@ -407,5 +422,6 @@ class InterviewSession:
             'session_type': self.session_type,
             'interview_type': self.interview_type,
             'total_questions': self.total_questions,
+            'difficulty_level': self.difficulty_level,
             'created_at': str(self.created_at) if self.created_at else None
         }

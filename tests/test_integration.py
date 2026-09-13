@@ -1203,6 +1203,278 @@ class TestIntroFeedback(BaseTestCase):
             self.assertIsInstance(d["introduction_feedback"], dict)
 
 
+
+# ===========================================================================
+# Practice Mode — Difficulty Level Tests
+# ===========================================================================
+
+class TestPracticeModeDifficulty(BaseTestCase):
+    """
+    Tests for the difficulty_level feature in Practice Mode.
+
+    Covers:
+      - difficulty_level DB column default ('medium')
+      - All four valid levels ('easy', 'medium', 'hard', 'adaptive') saved correctly
+      - Invalid level falls back gracefully to 'medium'
+      - build_practice_prompt() injects the right difficulty directive
+      - Fallback question pools have >= 5 variants per level
+      - POST /practice/new stores difficulty in DB
+    """
+
+    def test_practice_session_default_difficulty_is_medium(self):
+        """create_practice() with no explicit level stores 'medium'."""
+        from models.interview_session import InterviewSession
+        from models.user import User
+
+        with self.app.app_context():
+            user = User.create("DiffTest User", "diff_default@example.com", "TestPass@123")
+            session = InterviewSession.create_practice(user_id=user.id, topic="Python")
+
+            self.assertEqual(session.difficulty_level, "medium")
+            self.assertIn("difficulty_level", session.to_dict())
+            self.assertEqual(session.to_dict()["difficulty_level"], "medium")
+
+    def test_practice_session_all_difficulty_levels_saved(self):
+        """All four valid difficulty levels are stored and retrieved correctly."""
+        from models.interview_session import InterviewSession
+        from models.user import User
+
+        with self.app.app_context():
+            user = User.create("DiffAllTest", "diff_all@example.com", "TestPass@123")
+            for level in ("easy", "medium", "hard", "adaptive"):
+                session = InterviewSession.create_practice(
+                    user_id=user.id,
+                    topic="SQL",
+                    difficulty_level=level
+                )
+                self.assertEqual(
+                    session.difficulty_level, level,
+                    f"Expected difficulty_level='{level}', got '{session.difficulty_level}'"
+                )
+                fetched = InterviewSession.get_by_id(session.id)
+                self.assertEqual(fetched.difficulty_level, level)
+
+    def test_invalid_difficulty_falls_back_to_medium(self):
+        """An invalid difficulty level is silently coerced to 'medium'."""
+        from models.interview_session import InterviewSession
+        from models.user import User
+
+        with self.app.app_context():
+            user = User.create("DiffFallback", "diff_fallback@example.com", "TestPass@123")
+            session = InterviewSession.create_practice(
+                user_id=user.id,
+                topic="Docker",
+                difficulty_level="extreme"
+            )
+            self.assertEqual(session.difficulty_level, "medium")
+
+    def test_build_practice_prompt_contains_difficulty_directive(self):
+        """build_practice_prompt() injects difficulty-specific instructions."""
+        from services.practice_engine import build_practice_prompt
+        from models.user import User
+
+        with self.app.app_context():
+            user = User.create("PromptTest", "prompt_diff@example.com", "TestPass@123")
+
+            easy_prompt = build_practice_prompt("Python", user, "easy")
+            medium_prompt = build_practice_prompt("Python", user, "medium")
+            hard_prompt = build_practice_prompt("Python", user, "hard")
+            adaptive_prompt = build_practice_prompt("Python", user, "adaptive")
+
+            self.assertIn("EASY", easy_prompt.upper())
+            self.assertIn("MEDIUM", medium_prompt.upper())
+            self.assertIn("HARD", hard_prompt.upper())
+            self.assertIn("ADAPTIVE", adaptive_prompt.upper())
+
+            self.assertNotEqual(easy_prompt, hard_prompt)
+            self.assertNotEqual(medium_prompt, adaptive_prompt)
+
+    def test_fallback_pools_have_five_plus_variants_each(self):
+        """Each difficulty level has at least 5 unique fallback question templates."""
+        from services.practice_engine import _FALLBACK_QUESTIONS
+
+        for level in ("easy", "medium", "hard", "adaptive"):
+            pool = _FALLBACK_QUESTIONS.get(level, [])
+            self.assertGreaterEqual(
+                len(pool), 5,
+                f"Fallback pool for '{level}' has only {len(pool)} variants."
+            )
+            for q in pool:
+                self.assertIn("{topic}", q, f"Fallback question missing {{topic}}: {q!r}")
+
+    def test_practice_setup_post_creates_session_with_difficulty(self):
+        """POST /student/practice/new with difficulty_level='hard' stores hard in DB."""
+        register_and_login(self.client)
+
+        resp = self.client.post(
+            "/student/practice/new",
+            data={"topic": "SQL", "difficulty_level": "hard"},
+            follow_redirects=False
+        )
+        self.assertIn(resp.status_code, (302, 303))
+
+        from models.interview_session import InterviewSession
+        from models.user import User
+
+        with self.app.app_context():
+            user = User.get_by_email(SAMPLE_STUDENT["email"])
+            sessions = InterviewSession.get_practice_sessions_by_user(user.id)
+            self.assertTrue(len(sessions) > 0)
+            latest = sessions[0]
+            self.assertEqual(latest.difficulty_level, "hard")
+
+    def test_practice_setup_post_with_total_questions_and_custom(self):
+        """POST /student/practice/new saves preset and custom total_questions correctly."""
+        register_and_login(self.client)
+        from models.interview_session import InterviewSession
+        from models.user import User
+
+        # 1. Preset 5 questions
+        resp1 = self.client.post(
+            "/student/practice/new",
+            data={"topic": "Golang", "difficulty_level": "easy", "total_questions": "5"},
+            follow_redirects=False
+        )
+        self.assertIn(resp1.status_code, (302, 303))
+
+        # 2. Custom 7 questions
+        resp2 = self.client.post(
+            "/student/practice/new",
+            data={"topic": "Rust", "difficulty_level": "hard", "total_questions": "custom", "custom_questions": "7"},
+            follow_redirects=False
+        )
+        self.assertIn(resp2.status_code, (302, 303))
+
+        with self.app.app_context():
+            user = User.get_by_email(SAMPLE_STUDENT["email"])
+            sessions = InterviewSession.get_practice_sessions_by_user(user.id)
+            rust_session = next(s for s in sessions if s.job_role == "Rust")
+            golang_session = next(s for s in sessions if s.job_role == "Golang")
+
+            self.assertEqual(rust_session.total_questions, 7)
+            self.assertEqual(rust_session.difficulty_level, "hard")
+            self.assertEqual(golang_session.total_questions, 5)
+            self.assertEqual(golang_session.difficulty_level, "easy")
+
+
+# ===========================================================================
+# Practice Mode — Wrap-Up, Back-Nav & History Tests
+# ===========================================================================
+
+class TestPracticeModeWrapUpAndHistory(BaseTestCase):
+    """Tests for Practice Mode wrap-up detection, post-wrap-up guard, back-nav redirect, and history badges."""
+
+    def test_practice_chat_wrap_up_after_final_question(self):
+        """Practice chat sets is_wrap_up=True when student answers the final question."""
+        from services.practice_engine import get_practice_question
+        from models.interview_session import InterviewSession
+        from models.user import User
+        from database.connection import get_db
+
+        with self.app.app_context():
+            user = User.create("WrapUpUser", "wrapup_user@example.com", "TestPass@123")
+            session = InterviewSession.create_practice(
+                user_id=user.id,
+                topic="FastAPI",
+                difficulty_level="medium"
+            )
+            # Update total_questions to 3 for quick test
+            db = get_db()
+            db.cursor().execute("UPDATE interview_sessions SET total_questions = 3 WHERE id = ?", (session.id,))
+            db.commit()
+
+            # Question 1 (initial AI question, 0 student answers)
+            res0 = get_practice_question(session.id, student_answer=None)
+            self.assertFalse(res0["is_wrap_up"])
+            self.assertEqual(res0["current_question_number"], 1)
+
+            # Student Answer 1
+            res1 = get_practice_question(session.id, student_answer="FastAPI is an async Python web framework.")
+            self.assertFalse(res1["is_wrap_up"])
+            self.assertEqual(res1["current_question_number"], 2)
+
+            # Student Answer 2
+            res2 = get_practice_question(session.id, student_answer="I use Pydantic schemas for data validation.")
+            self.assertFalse(res2["is_wrap_up"])
+            self.assertEqual(res2["current_question_number"], 3)
+
+            # Student Answer 3 (FINAL QUESTION)
+            res3 = get_practice_question(session.id, student_answer="I use pytest and TestClient for endpoints.")
+            self.assertTrue(res3["is_wrap_up"])
+            self.assertEqual(res3["current_question_number"], 3)
+            self.assertEqual(res3["total_questions"], 3)
+
+    def test_practice_chat_rejects_after_wrap_up(self):
+        """Post-wrap-up chat turns return wrap-up termination without calling Gemini."""
+        from services.practice_engine import get_practice_question
+        from models.interview_session import InterviewSession
+        from models.user import User
+        from database.connection import get_db
+
+        with self.app.app_context():
+            user = User.create("PostWrapUser", "postwrap_user@example.com", "TestPass@123")
+            session = InterviewSession.create_practice(
+                user_id=user.id,
+                topic="Git",
+                difficulty_level="easy"
+            )
+            # Set total_questions to 3 (satisfies DB CHECK constraint 3..20)
+            db = get_db()
+            db.cursor().execute("UPDATE interview_sessions SET total_questions = 3 WHERE id = ?", (session.id,))
+            db.commit()
+
+            # Answer 1, 2, 3 (final)
+            get_practice_question(session.id, student_answer="Git tracks code changes.")
+            get_practice_question(session.id, student_answer="I use git commit -m to save changes.")
+            res3 = get_practice_question(session.id, student_answer="I use git push to sync with GitHub.")
+            self.assertTrue(res3["is_wrap_up"])
+
+            # Turn 4 (post wrap-up attempt)
+            res4 = get_practice_question(session.id, student_answer="Are there any other questions?")
+            self.assertTrue(res4["is_wrap_up"])
+            self.assertIn("ended", res4["ai_message"].lower())
+
+    def test_practice_room_redirects_completed_session(self):
+        """GET /student/practice/<session_id>/room on completed session redirects (302) to results."""
+        register_and_login(self.client)
+        from models.interview_session import InterviewSession
+        from models.user import User
+
+        with self.app.app_context():
+            user = User.get_by_email(SAMPLE_STUDENT["email"])
+            session = InterviewSession.create_practice(
+                user_id=user.id,
+                topic="CSS Grid",
+                difficulty_level="medium"
+            )
+            session.complete()
+            session_id = session.id
+
+        resp = self.client.get(f"/student/practice/{session_id}/room", follow_redirects=False)
+        self.assertIn(resp.status_code, (302, 303))
+        self.assertIn(f"/interviews/{session_id}/results", resp.headers["Location"])
+
+    def test_practice_history_renders_difficulty_badges(self):
+        """GET /student/interviews/history?tab=practice renders difficulty level pills for practice sessions."""
+        register_and_login(self.client)
+        from models.interview_session import InterviewSession
+        from models.user import User
+
+        with self.app.app_context():
+            user = User.get_by_email(SAMPLE_STUDENT["email"])
+            InterviewSession.create_practice(user_id=user.id, topic="Vue.js", difficulty_level="easy")
+            InterviewSession.create_practice(user_id=user.id, topic="PostgreSQL", difficulty_level="hard")
+            InterviewSession.create_practice(user_id=user.id, topic="Microservices", difficulty_level="adaptive")
+
+        resp = self.client.get("/student/interviews/history?tab=practice")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode("utf-8")
+        self.assertIn("Difficulty", html)
+        self.assertIn("Easy", html)
+        self.assertIn("Hard", html)
+        self.assertIn("Adaptive", html)
+
+
 # ===========================================================================
 # RUNNER
 # ===========================================================================
@@ -1221,9 +1493,12 @@ if __name__ == "__main__":
         TestPracticeMode,
         TestInterviewCustomization,
         TestIntroFeedback,
+        TestPracticeModeDifficulty,
+        TestPracticeModeWrapUpAndHistory,
     ]:
         suite.addTests(loader.loadTestsFromTestCase(cls))
 
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
     sys.exit(0 if result.wasSuccessful() else 1)
+

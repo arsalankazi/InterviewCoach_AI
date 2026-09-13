@@ -71,14 +71,23 @@ def _build_analysis_prompt(session, messages: list) -> str:
 
     total_questions = getattr(session, 'total_questions', 8) or 8
 
-    prompt = f"""You are an expert technical recruiter and interview coach.
-Analyse the following mock interview transcript for a {job_role} position and evaluate the candidate's performance.
+    is_practice = getattr(session, 'session_type', 'interview') == 'practice'
 
---- BEGIN TRANSCRIPT ---
-{transcript_text}
---- END TRANSCRIPT ---
-
-IMPORTANT STRUCTURAL RULES:
+    if is_practice:
+        difficulty_level = getattr(session, 'difficulty_level', 'medium') or 'medium'
+        structural_rules = f"""IMPORTANT STRUCTURAL RULES FOR PRACTICE DRILL:
+- This is a focused technical practice drill on the topic "{job_role}".
+- Difficulty level selected by the student: {difficulty_level.upper()}.
+- There is NO greeting and NO introduction question. All turns in the transcript are direct practice questions on this topic.
+- Evaluate each practice question asked in "question_breakdown".
+- Set "introduction_feedback" to null (not applicable for practice drills).
+- When scoring, take the difficulty level into account:
+  * EASY: a good answer means the student can explain the concept clearly in simple words.
+  * MEDIUM: a good answer means the student can apply the concept in a real project scenario.
+  * HARD: a good answer means the student understands trade-offs, edge cases, and failure modes.
+  * ADAPTIVE: the questions got harder or easier based on answers — evaluate each answer against the question's actual difficulty."""
+    else:
+        structural_rules = f"""IMPORTANT STRUCTURAL RULES:
 - The transcript follows this stage order:
   1. Stage 1: Greeting (AI only — ignore this for evaluation).
   2. Stage 2: Introduction (AI asks candidate to introduce themselves → Candidate responds).
@@ -87,7 +96,16 @@ IMPORTANT STRUCTURAL RULES:
   3. Stage 3+: Actual interview questions (technical, behavioral, or mixed).
      The candidate completed {total_questions} actual interview questions.
      Therefore, the "question_breakdown" array MUST contain EXACTLY {total_questions} entries (one for each Stage 3+ actual question).
-     Do NOT include the Stage 2 introduction question in "question_breakdown".
+     Do NOT include the Stage 2 introduction question in "question_breakdown"."""
+
+    prompt = f"""You are an expert technical recruiter and interview coach.
+Analyse the following mock interview transcript for a {job_role} position and evaluate the candidate's performance.
+
+--- BEGIN TRANSCRIPT ---
+{transcript_text}
+--- END TRANSCRIPT ---
+
+{structural_rules}
 
 Based on the transcript above, produce a JSON object with EXACTLY these keys and value types:
 
@@ -99,13 +117,7 @@ Based on the transcript above, produce a JSON object with EXACTLY these keys and
   "strengths": ["<string>", "<string>"],
   "weaknesses": ["<string>", "<string>"],
   "suggestions": ["<string>", "<string>"],
-  "introduction_feedback": {{
-    "transcript_summary": "<1-2 sentence summary of what the candidate said in their introduction>",
-    "strengths": ["<strong point 1>", "<strong point 2>"],
-    "improvements": ["<improvement area 1>", "<improvement area 2>"],
-    "overall_rating": "<Excellent | Good | Average | Needs Work>",
-    "detailed_feedback": "<2-4 sentence detailed coaching feedback on the introduction quality, structure, confidence, and relevance to the {job_role} role>"
-  }},
+  "introduction_feedback": <null for practice drill, or object with keys {{"transcript_summary": "...", "strengths": [...], "improvements": [...], "overall_rating": "...", "detailed_feedback": "..."}} for full interview>,
   "question_breakdown": [
     {{
       "question": "<the interviewer's question text>",
@@ -136,15 +148,15 @@ Scoring guidelines:
 - strengths: 2 to 4 brief, simple positive points (each under 15 words).
 - weaknesses: 2 to 4 brief, simple areas to improve (each under 15 words).
 - suggestions: 2 to 4 actionable, simple tips (each under 20 words).
-- introduction_feedback: Evaluate the Stage 2 introduction response ONLY. Do NOT repeat it in question_breakdown.
+- introduction_feedback: Evaluate the Stage 2 introduction response ONLY for full interviews. Set to null for practice drills.
 - introduction_feedback.overall_rating: 'Excellent' if clear, specific, and confident; 'Good' if solid but could be clearer; 'Average' if too short or generic; 'Needs Work' if unclear or missing key details.
 - introduction_feedback.detailed_feedback: 2 to 3 short, simple sentences on how well the candidate introduced themselves and how to make it better.
-- question_breakdown: Extract EVERY question from Stage 3+ ONLY. Must contain exactly {total_questions} entries corresponding to the {total_questions} actual questions asked. Do NOT include the Stage 2 introduction question. Provide the question, candidate's response, simple sample answer (ideal_answer), simple feedback, topic, and score (0-100).
+- question_breakdown: Extract EVERY question from the transcript (for practice drills: all practice questions; for full interviews: Stage 3+ actual questions). Provide the question, candidate's response, simple sample answer (ideal_answer), simple feedback, topic, and score (0-100).
 
 CRITICAL RULES:
 - Return ONLY the raw JSON object. No markdown, no code fences, no explanation text.
 - All list fields (strengths, weaknesses, suggestions) must contain at least 2 items and no more than 4 items.
-- introduction_feedback.strengths and introduction_feedback.improvements must each have at least 2 items.
+- If introduction_feedback is provided, its strengths and improvements must each have at least 2 items.
 - Ensure the JSON is completely valid and properly closed.
 """
     return prompt.strip()

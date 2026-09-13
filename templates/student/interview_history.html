@@ -379,6 +379,7 @@
                                 <th style="width: 140px;">Date</th>
                                 <th>Practice Topic</th>
                                 <th>Coach / Mode</th>
+                                <th style="width: 120px;">Difficulty</th>
                                 <th style="width: 130px;">Status</th>
                                 <th style="width: 160px;">Score</th>
                                 <th style="width: 130px; text-align: right;">Action</th>
@@ -429,6 +430,28 @@
                                                 <div class="persona-gender-tag" style="color: #fbbf24;">5-Min Quick Drill</div>
                                             </div>
                                         </div>
+                                    </td>
+
+                                    <!-- Difficulty Level -->
+                                    <td class="history-difficulty-cell">
+                                        {% set diff = session.difficulty_level|default('medium')|lower %}
+                                        {% if diff == 'easy' %}
+                                            <span class="history-badge difficulty-pill diff-easy" style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                                <span>🟢</span> Easy
+                                            </span>
+                                        {% elif diff == 'hard' %}
+                                            <span class="history-badge difficulty-pill diff-hard" style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                                <span>🔴</span> Hard
+                                            </span>
+                                        {% elif diff == 'adaptive' %}
+                                            <span class="history-badge difficulty-pill diff-adaptive" style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3);">
+                                                <span>🟣</span> Adaptive
+                                            </span>
+                                        {% else %}
+                                            <span class="history-badge difficulty-pill diff-medium" style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
+                                                <span>🟡</span> Medium
+                                            </span>
+                                        {% endif %}
                                     </td>
 
                                     <!-- Status Badge -->

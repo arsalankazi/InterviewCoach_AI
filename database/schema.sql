@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS interview_sessions (
                                CHECK(interview_type IN ('technical', 'general', 'mixed')),
     total_questions    INTEGER DEFAULT 8 NOT NULL
                                CHECK(total_questions >= 3 AND total_questions <= 20),
+    difficulty_level   TEXT    NOT NULL DEFAULT 'medium'
+                               CHECK(difficulty_level IN ('easy', 'medium', 'hard', 'adaptive')),
     created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

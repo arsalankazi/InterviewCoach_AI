@@ -45,9 +45,11 @@ def _run_postgres_migrations():
         "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS session_type VARCHAR(30) NOT NULL DEFAULT 'full_interview';",
         "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS interview_type VARCHAR(30) NOT NULL DEFAULT 'mixed';",
         "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS total_questions INTEGER NOT NULL DEFAULT 8;",
+        "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS difficulty_level VARCHAR(30) NOT NULL DEFAULT 'medium';",
         "ALTER TABLE interview_reports ADD COLUMN IF NOT EXISTS introduction_feedback TEXT DEFAULT NULL;",
         "CREATE INDEX IF NOT EXISTS idx_sessions_type ON interview_sessions(session_type);",
         "CREATE INDEX IF NOT EXISTS idx_sessions_interview_type ON interview_sessions(interview_type);",
+        "CREATE INDEX IF NOT EXISTS idx_sessions_difficulty ON interview_sessions(difficulty_level);",
     ]
     try:
         conn = get_db()
@@ -75,6 +77,7 @@ def _ensure_postgres_defaults():
         cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN session_type SET DEFAULT 'full_interview';")
         cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN interview_type SET DEFAULT 'mixed';")
         cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN total_questions SET DEFAULT 8;")
+        cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN difficulty_level SET DEFAULT 'medium';")
         cursor.execute("ALTER TABLE interview_sessions ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
         cursor.execute("ALTER TABLE interview_messages ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
         cursor.execute("ALTER TABLE interview_reports ALTER COLUMN technical_score SET DEFAULT 0;")
@@ -162,11 +165,19 @@ def _run_sqlite_migrations():
             "ALTER TABLE interview_sessions "
             "ADD COLUMN total_questions INTEGER NOT NULL DEFAULT 8;"
         )
+    if 'difficulty_level' not in session_cols:
+        cursor.execute(
+            "ALTER TABLE interview_sessions "
+            "ADD COLUMN difficulty_level TEXT NOT NULL DEFAULT 'medium';"
+        )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_sessions_type ON interview_sessions(session_type);"
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_sessions_interview_type ON interview_sessions(interview_type);"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sessions_difficulty ON interview_sessions(difficulty_level);"
     )
 
     # Ensure interview_messages table exists

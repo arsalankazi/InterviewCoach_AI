@@ -122,6 +122,137 @@
                 </div>
             </div>
 
+            <!-- Difficulty Level Selector -->
+            <div class="practice-field-group" id="difficulty-section">
+                <label class="practice-field-label">
+                    Difficulty Level <span class="required-star">*</span>
+                </label>
+                <p class="practice-field-hint">Choose how challenging you want the questions to be.</p>
+
+                <div class="difficulty-grid" id="difficulty-grid">
+
+                    <!-- Easy -->
+                    <label class="difficulty-card" id="diff-card-easy">
+                        <input
+                            type="radio"
+                            name="difficulty_level"
+                            value="easy"
+                            class="difficulty-radio"
+                            id="diff-easy"
+                            {% if form_data.get('difficulty_level') == 'easy' %}checked{% endif %}
+                        >
+                        <div class="difficulty-card-inner">
+                            <div class="difficulty-icon" style="background: rgba(16,185,129,0.15); border: 1.5px solid rgba(16,185,129,0.4);">
+                                <span>🟢</span>
+                            </div>
+                            <div class="difficulty-info">
+                                <strong class="difficulty-name" style="color: #34d399;">Easy</strong>
+                                <span class="difficulty-desc">Basic "what is" and definition questions</span>
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- Medium (default) -->
+                    <label class="difficulty-card selected" id="diff-card-medium">
+                        <input
+                            type="radio"
+                            name="difficulty_level"
+                            value="medium"
+                            class="difficulty-radio"
+                            id="diff-medium"
+                            {% if form_data.get('difficulty_level', 'medium') == 'medium' %}checked{% endif %}
+                        >
+                        <span class="difficulty-default-tag">Default</span>
+                        <div class="difficulty-card-inner">
+                            <div class="difficulty-icon" style="background: rgba(245,158,11,0.15); border: 1.5px solid rgba(245,158,11,0.4);">
+                                <span>🟡</span>
+                            </div>
+                            <div class="difficulty-info">
+                                <strong class="difficulty-name" style="color: #fbbf24;">Medium</strong>
+                                <span class="difficulty-desc">Scenario-based and "how would you" questions</span>
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- Hard -->
+                    <label class="difficulty-card" id="diff-card-hard">
+                        <input
+                            type="radio"
+                            name="difficulty_level"
+                            value="hard"
+                            class="difficulty-radio"
+                            id="diff-hard"
+                            {% if form_data.get('difficulty_level') == 'hard' %}checked{% endif %}
+                        >
+                        <div class="difficulty-card-inner">
+                            <div class="difficulty-icon" style="background: rgba(239,68,68,0.15); border: 1.5px solid rgba(239,68,68,0.4);">
+                                <span>🔴</span>
+                            </div>
+                            <div class="difficulty-info">
+                                <strong class="difficulty-name" style="color: #f87171;">Hard</strong>
+                                <span class="difficulty-desc">Trade-offs, edge cases, and "why" questions</span>
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- Adaptive -->
+                    <label class="difficulty-card" id="diff-card-adaptive">
+                        <input
+                            type="radio"
+                            name="difficulty_level"
+                            value="adaptive"
+                            class="difficulty-radio"
+                            id="diff-adaptive"
+                            {% if form_data.get('difficulty_level') == 'adaptive' %}checked{% endif %}
+                        >
+                        <div class="difficulty-card-inner">
+                            <div class="difficulty-icon" style="background: rgba(99,102,241,0.15); border: 1.5px solid rgba(99,102,241,0.4);">
+                                <span>🎯</span>
+                            </div>
+                            <div class="difficulty-info">
+                                <strong class="difficulty-name" style="color: #a5b4fc;">Adaptive</strong>
+                                <span class="difficulty-desc">AI adjusts based on your answers</span>
+                            </div>
+                        </div>
+                    </label>
+
+                </div>
+            </div>
+
+            <!-- Number of Questions Selector -->
+            <div class="practice-field-group" id="questions-section">
+                <label for="total_questions" class="practice-field-label">
+                    Number of Questions <span class="required-star">*</span>
+                </label>
+                <p class="practice-field-hint">Select how many questions you want in this practice drill.</p>
+
+                <div class="setup-field-group" style="margin-top: 0.5rem;">
+                    <select name="total_questions" id="total_questions" class="form-input setup-select practice-select" required>
+                        <option value="3" {% if form_data.get('total_questions') == '3' %}selected{% endif %}>3 Questions (Quick Drill)</option>
+                        <option value="5" {% if form_data.get('total_questions') == '5' %}selected{% endif %}>5 Questions (Standard Drill)</option>
+                        <option value="6" {% if form_data.get('total_questions', '6') == '6' %}selected{% endif %}>6 Questions (Recommended - Default)</option>
+                        <option value="8" {% if form_data.get('total_questions') == '8' %}selected{% endif %}>8 Questions (Extended Drill)</option>
+                        <option value="10" {% if form_data.get('total_questions') == '10' %}selected{% endif %}>10 Questions (Deep Dive)</option>
+                        <option value="custom" {% if form_data.get('total_questions') == 'custom' %}selected{% endif %}>Custom…</option>
+                    </select>
+                </div>
+
+                <!-- Custom Question Count Input (Shown when 'Custom' is selected) -->
+                <div class="practice-custom-wrap" id="custom-questions-wrap" style="{% if form_data.get('total_questions') != 'custom' %}display: none;{% endif %} margin-top: 0.75rem;">
+                    <label for="custom_questions" class="practice-field-hint" style="display:block; margin-bottom: 0.35rem; color: #94a3b8;">Specify number of questions (3 - 20):</label>
+                    <input 
+                        type="number" 
+                        name="custom_questions" 
+                        id="custom_questions" 
+                        class="practice-text-input" 
+                        placeholder="e.g. 7" 
+                        min="3" 
+                        max="20"
+                        value="{{ form_data.get('custom_questions', '') }}" 
+                    >
+                </div>
+            </div>
+
             <!-- Submit -->
             <div class="practice-actions">
                 <button
@@ -317,6 +448,89 @@
     box-shadow: 0 8px 24px rgba(99,102,241,0.35);
 }
 .btn-icon { margin-right: 0.4rem; }
+
+/* ============================================================
+   Difficulty Level Cards
+   ============================================================ */
+.difficulty-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+@media (max-width: 520px) {
+    .difficulty-grid { grid-template-columns: 1fr; }
+}
+.difficulty-card {
+    position: relative;
+    cursor: pointer;
+    border-radius: 14px;
+    border: 1.5px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    padding: 1rem;
+    transition: all 0.18s ease;
+    user-select: none;
+    display: block;
+}
+.difficulty-card:hover {
+    border-color: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.06);
+    transform: translateY(-2px);
+}
+.difficulty-card.selected {
+    border-color: rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.08);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
+}
+.difficulty-radio { display: none; }
+.difficulty-card-inner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    position: relative;
+}
+.difficulty-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+.difficulty-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding-right: 2.6rem; /* Prevent overlap with top-right Default badge */
+}
+.difficulty-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+.difficulty-desc {
+    font-size: 0.73rem;
+    color: #64748b;
+    line-height: 1.3;
+}
+.difficulty-default-tag {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 0.60rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #fbbf24;
+    background: rgba(245,158,11,0.15);
+    border: 1px solid rgba(245,158,11,0.35);
+    border-radius: 99px;
+    padding: 0.15rem 0.45rem;
+    pointer-events: none;
+    z-index: 2;
+}
 </style>
 
 <script>
@@ -327,6 +541,9 @@
     const customWrap   = document.getElementById('custom-topic-wrap');
     const customInput  = document.getElementById('custom_topic_input');
     const charCount    = document.getElementById('custom-char-count');
+    const qSelect      = document.getElementById('total_questions');
+    const customQWrap  = document.getElementById('custom-questions-wrap');
+    const customQInput = document.getElementById('custom_questions');
     const form         = document.getElementById('practice-setup-form');
     const startBtn     = document.getElementById('practice-start-btn');
 
@@ -348,6 +565,50 @@
         });
     }
 
+    // ----------------------------------------------------------------
+    // Total Questions — Custom toggle
+    // ----------------------------------------------------------------
+    function updateQuestionCountVisibility() {
+        if (!qSelect || !customQWrap) return;
+        const isCustom = qSelect.value === 'custom';
+        customQWrap.style.display = isCustom ? 'block' : 'none';
+        if (isCustom && customQInput) customQInput.focus();
+    }
+
+    if (qSelect) {
+        qSelect.addEventListener('change', updateQuestionCountVisibility);
+        updateQuestionCountVisibility();
+    }
+
+    // ----------------------------------------------------------------
+    // Difficulty card selection — sync visual selected state
+    // ----------------------------------------------------------------
+    const difficultyRadios = document.querySelectorAll('.difficulty-radio');
+    const difficultyCards  = document.querySelectorAll('.difficulty-card');
+
+    function updateDifficultyCards() {
+        difficultyCards.forEach(card => {
+            const radio = card.querySelector('.difficulty-radio');
+            card.classList.toggle('selected', radio?.checked ?? false);
+        });
+    }
+
+    // Ensure medium is checked by default if nothing is pre-selected
+    const anyDiffChecked = Array.from(difficultyRadios).some(r => r.checked);
+    if (!anyDiffChecked) {
+        const mediumRadio = document.getElementById('diff-medium');
+        if (mediumRadio) mediumRadio.checked = true;
+    }
+    updateDifficultyCards();
+
+    difficultyRadios.forEach(r => r.addEventListener('change', updateDifficultyCards));
+    difficultyCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const radio = card.querySelector('.difficulty-radio');
+            if (radio) { radio.checked = true; updateDifficultyCards(); }
+        });
+    });
+
     // Prevent submit with no topic selected
     form.addEventListener('submit', function (e) {
         const selected = document.querySelector('.topic-radio:checked');
@@ -361,6 +622,15 @@
             customInput?.focus();
             alert('Please enter your custom topic in the text field.');
             return;
+        }
+        if (qSelect?.value === 'custom') {
+            const val = parseInt(customQInput?.value, 10);
+            if (isNaN(val) || val < 3 || val > 20) {
+                e.preventDefault();
+                customQInput?.focus();
+                alert('Please enter a valid number of questions between 3 and 20.');
+                return;
+            }
         }
         startBtn.disabled = true;
         startBtn.textContent = 'Starting…';

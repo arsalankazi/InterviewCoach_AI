@@ -55,6 +55,7 @@ class InterviewSessionModel(db.Model):
     session_type = db.Column(db.String(30), default='full_interview', server_default='full_interview', nullable=False, index=True)
     interview_type = db.Column(db.String(30), default='mixed', server_default='mixed', nullable=False, index=True)
     total_questions = db.Column(db.Integer, default=8, server_default='8', nullable=False)
+    difficulty_level = db.Column(db.String(30), default='medium', server_default='medium', nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, server_default=func.now())
 
 
