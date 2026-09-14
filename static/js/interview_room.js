@@ -450,6 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // =============================================================
     // MODULE 10 — Part A: VoiceOutputManager (Text-to-Speech)
+    // Indian English (en-IN) prioritization & mobile male pitch fix
     // =============================================================
     const VoiceOutputManager = (() => {
         const btnTts      = document.getElementById('btn-tts-toggle');
@@ -457,16 +458,147 @@ document.addEventListener('DOMContentLoaded', () => {
         const synth       = window.speechSynthesis;
         let isMuted       = false;
         let voices        = [];
+        let selectedVoice = null;
+        let selectedVoiceConfig = { pitch: 1.0, rate: 0.95, isIndian: false, isFallback: false, reason: '' };
 
-        function loadVoices() { voices = synth ? synth.getVoices() : []; }
-        if (synth) { loadVoices(); synth.addEventListener('voiceschanged', loadVoices); }
+        function isIndianLang(v) {
+            if (!v || !v.lang) return false;
+            const l = v.lang.toLowerCase().replace('_', '-');
+            return l === 'en-in' || l.startsWith('en-in') || l === 'hi-in' || /india|indian|hindi/i.test(v.name);
+        }
 
-        function pickVoice() {
-            if (!voices.length) return null;
-            const preferred = interviewerGender === 'female'
-                ? voices.find(v => v.lang.startsWith('en') && /female|woman|zira|samantha|victoria|karen/i.test(v.name))
-                : voices.find(v => v.lang.startsWith('en') && /male|man|david|daniel|google us/i.test(v.name));
-            return preferred || voices.find(v => v.lang.startsWith('en')) || voices[0] || null;
+        function isFemaleVoice(v) {
+            if (!v) return false;
+            const name = (v.name || '').toLowerCase();
+            return /female|woman|girl|lady|heera|swara|zira|samantha|victoria|karen|hazel|susan|priya|ananya|neerja|kavya|jenny|aria|sonia|libby/i.test(name);
+        }
+
+        function isMaleVoice(v) {
+            if (!v) return false;
+            const name = (v.name || '').toLowerCase();
+            if (isFemaleVoice(v)) return false;
+            return /male|man\b|boy|ravi|prabhat|george|david|daniel|guy|oliver|ryan|arthur|james|richard|mark|google uk english male|google us english/i.test(name);
+        }
+
+        function resolveVoice(gender, voiceList) {
+            if (!voiceList || !voiceList.length) {
+                return {
+                    voice: null,
+                    pitch: gender === 'male' ? 0.82 : 1.05,
+                    rate: 0.95,
+                    isIndian: false,
+                    isFallback: true,
+                    reason: 'No voices available in browser'
+                };
+            }
+
+            const enInVoices = voiceList.filter(v => isIndianLang(v));
+            const enGbVoices = voiceList.filter(v => v.lang && v.lang.toLowerCase().startsWith('en-gb'));
+            const enUsVoices = voiceList.filter(v => v.lang && v.lang.toLowerCase().startsWith('en-us'));
+            const anyEnVoices = voiceList.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+
+            if (gender === 'male') {
+                // 1. en-IN Male voice (Best)
+                const inMale = enInVoices.find(v => isMaleVoice(v));
+                if (inMale) {
+                    return { voice: inMale, pitch: 0.95, rate: 0.95, isIndian: true, isFallback: false, reason: 'en-IN male voice' };
+                }
+                // 2. en-IN any voice with pitch lowered for male tone
+                if (enInVoices.length > 0) {
+                    return { voice: enInVoices[0], pitch: 0.82, rate: 0.95, isIndian: true, isFallback: true, reason: 'en-IN voice with pitch downshift for male' };
+                }
+                // 3. en-GB Male voice
+                const gbMale = enGbVoices.find(v => isMaleVoice(v));
+                if (gbMale) {
+                    return { voice: gbMale, pitch: 0.95, rate: 0.95, isIndian: false, isFallback: true, reason: 'en-GB male voice' };
+                }
+                // 4. en-US Male voice
+                const usMale = enUsVoices.find(v => isMaleVoice(v));
+                if (usMale) {
+                    return { voice: usMale, pitch: 0.95, rate: 0.95, isIndian: false, isFallback: true, reason: 'en-US male voice' };
+                }
+                // 5. Any English Male voice
+                const anyEnMale = anyEnVoices.find(v => isMaleVoice(v));
+                if (anyEnMale) {
+                    return { voice: anyEnMale, pitch: 0.95, rate: 0.95, isIndian: false, isFallback: true, reason: 'English male voice' };
+                }
+                // 6. Any English voice with simulated male pitch
+                if (anyEnVoices.length > 0) {
+                    return { voice: anyEnVoices[0], pitch: 0.82, rate: 0.95, isIndian: false, isFallback: true, reason: 'English voice simulated male (pitch 0.82)' };
+                }
+                // 7. Default browser voice fallback
+                return { voice: voiceList[0], pitch: 0.82, rate: 0.95, isIndian: false, isFallback: true, reason: 'Default voice simulated male (pitch 0.82)' };
+            } else {
+                // Female Priority
+                // 1. en-IN Female voice (Best)
+                const inFemale = enInVoices.find(v => isFemaleVoice(v)) || enInVoices[0];
+                if (inFemale) {
+                    return { voice: inFemale, pitch: 1.05, rate: 0.95, isIndian: true, isFallback: false, reason: 'en-IN female voice' };
+                }
+                // 2. en-GB Female voice
+                const gbFemale = enGbVoices.find(v => isFemaleVoice(v)) || enGbVoices[0];
+                if (gbFemale) {
+                    return { voice: gbFemale, pitch: 1.05, rate: 0.95, isIndian: false, isFallback: true, reason: 'en-GB female voice' };
+                }
+                // 3. en-US Female voice
+                const usFemale = enUsVoices.find(v => isFemaleVoice(v)) || enUsVoices[0];
+                if (usFemale) {
+                    return { voice: usFemale, pitch: 1.05, rate: 0.95, isIndian: false, isFallback: true, reason: 'en-US female voice' };
+                }
+                // 4. Any English voice
+                if (anyEnVoices.length > 0) {
+                    const anyEnFemale = anyEnVoices.find(v => isFemaleVoice(v)) || anyEnVoices[0];
+                    return { voice: anyEnFemale, pitch: 1.05, rate: 0.95, isIndian: false, isFallback: true, reason: 'English female voice' };
+                }
+                // 5. Default browser voice
+                return { voice: voiceList[0], pitch: 1.05, rate: 0.95, isIndian: false, isFallback: true, reason: 'Default voice female' };
+            }
+        }
+
+        function getOrSelectVoice() {
+            if (selectedVoice) {
+                console.log(`[Voice] Using cached voice: ${selectedVoice.name}`);
+                return {
+                    voice: selectedVoice,
+                    pitch: selectedVoiceConfig.pitch,
+                    rate: selectedVoiceConfig.rate
+                };
+            }
+
+            if (!voices.length && synth) {
+                voices = synth.getVoices() || [];
+            }
+
+            console.log(`[Voice] Initial selection — voices available: ${voices.length}`);
+            const result = resolveVoice(interviewerGender, voices);
+            selectedVoice = result.voice;
+            selectedVoiceConfig = result;
+
+            if (result.isFallback) {
+                console.log(`[Voice] Fallback used: ${result.reason} — pitch adjusted to ${result.pitch}`);
+            }
+            console.log(`[Voice Debug] Session gender: ${interviewerGender}, selected voice: ${selectedVoice ? selectedVoice.name : 'Default'}, lang: ${selectedVoice ? selectedVoice.lang : 'en'}, pitch: ${result.pitch}`);
+
+            return {
+                voice: selectedVoice,
+                pitch: selectedVoiceConfig.pitch,
+                rate: selectedVoiceConfig.rate
+            };
+        }
+
+        function loadVoices() {
+            voices = synth ? synth.getVoices() : [];
+            if (!selectedVoice && voices.length) {
+                getOrSelectVoice();
+            }
+        }
+
+        if (synth) {
+            loadVoices();
+            synth.addEventListener('voiceschanged', loadVoices);
+            synth.onvoiceschanged = loadVoices;
+            // 500ms safety retry for mobile browsers that load voices asynchronously
+            setTimeout(loadVoices, 500);
         }
 
         function setSubtitle(text) {
@@ -480,11 +612,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!synth || !text || isMuted) return;
             synth.cancel();
             const utterance  = new SpeechSynthesisUtterance(text);
-            utterance.rate   = 0.95;
-            utterance.pitch  = 1.0;
+            const voiceSetup = getOrSelectVoice();
+
+            utterance.rate   = voiceSetup.rate || 0.95;
+            utterance.pitch  = voiceSetup.pitch || 1.0;
             utterance.volume = 1.0;
-            const voice = pickVoice();
-            if (voice) utterance.voice = voice;
+            if (voiceSetup.voice) utterance.voice = voiceSetup.voice;
 
             utterance.onstart = () => AvatarAnimator.startSpeaking(utterance, text);
             utterance.onend   = () => AvatarAnimator.stopSpeaking();
@@ -495,6 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function mute() {
             isMuted = true;
+            selectedVoice = null; // Clear cached voice on mute
             if (synth) synth.cancel();
             AvatarAnimator.stopSpeaking();
             if (btnTts) {
@@ -509,6 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function unmute() {
             isMuted = false;
+            selectedVoice = null; // Re-select voice on next speak
             if (btnTts) {
                 const iconEl = btnTts.querySelector('.ctrl-icon');
                 if (iconEl) iconEl.textContent = '🔊';

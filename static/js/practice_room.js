@@ -98,12 +98,143 @@
 
     // ================================================================
     // MODULE: Text-to-Speech (TTSManager)
+    // Indian English (en-IN) prioritization & mobile male pitch fix
     // ================================================================
     let activeUtterance = null; // Stored in module scope to prevent GC truncation in Chrome/Edge
 
     const TTSManager = (() => {
         const synth = window.speechSynthesis || null;
         let isMuted = false;
+        let voices  = [];
+        let selectedVoice = null;
+        let selectedVoiceConfig = { pitch: 1.0, rate: 0.95, isIndian: false, isFallback: false, reason: '' };
+        const coachGender = 'female'; // Default coach gender for practice drill
+
+        function isIndianLang(v) {
+            if (!v || !v.lang) return false;
+            const l = v.lang.toLowerCase().replace('_', '-');
+            return l === 'en-in' || l.startsWith('en-in') || l === 'hi-in' || /india|indian|hindi/i.test(v.name);
+        }
+
+        function isFemaleVoice(v) {
+            if (!v) return false;
+            const name = (v.name || '').toLowerCase();
+            return /female|woman|girl|lady|heera|swara|zira|samantha|victoria|karen|hazel|susan|priya|ananya|neerja|kavya|jenny|aria|sonia|libby/i.test(name);
+        }
+
+        function isMaleVoice(v) {
+            if (!v) return false;
+            const name = (v.name || '').toLowerCase();
+            if (isFemaleVoice(v)) return false;
+            return /male|man\b|boy|ravi|prabhat|george|david|daniel|guy|oliver|ryan|arthur|james|richard|mark|google uk english male|google us english/i.test(name);
+        }
+
+        function resolveVoice(gender, voiceList) {
+            if (!voiceList || !voiceList.length) {
+                return {
+                    voice: null,
+                    pitch: gender === 'male' ? 0.82 : 1.05,
+                    rate: 0.95,
+                    isIndian: false,
+                    isFallback: true,
+                    reason: 'No voices available in browser'
+                };
+            }
+
+            const enInVoices = voiceList.filter(v => isIndianLang(v));
+            const enGbVoices = voiceList.filter(v => v.lang && v.lang.toLowerCase().startsWith('en-gb'));
+            const enUsVoices = voiceList.filter(v => v.lang && v.lang.toLowerCase().startsWith('en-us'));
+            const anyEnVoices = voiceList.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+
+            if (gender === 'male') {
+                const inMale = enInVoices.find(v => isMaleVoice(v));
+                if (inMale) {
+                    return { voice: inMale, pitch: 0.95, rate: 0.95, isIndian: true, isFallback: false, reason: 'en-IN male voice' };
+                }
+                if (enInVoices.length > 0) {
+                    return { voice: enInVoices[0], pitch: 0.82, rate: 0.95, isIndian: true, isFallback: true, reason: 'en-IN voice with pitch downshift for male' };
+                }
+                const gbMale = enGbVoices.find(v => isMaleVoice(v));
+                if (gbMale) {
+                    return { voice: gbMale, pitch: 0.95, rate: 0.95, isIndian: false, isFallback: true, reason: 'en-GB male voice' };
+                }
+                const usMale = enUsVoices.find(v => isMaleVoice(v));
+                if (usMale) {
+                    return { voice: usMale, pitch: 0.95, rate: 0.95, isIndian: false, isFallback: true, reason: 'en-US male voice' };
+                }
+                const anyEnMale = anyEnVoices.find(v => isMaleVoice(v));
+                if (anyEnMale) {
+                    return { voice: anyEnMale, pitch: 0.95, rate: 0.95, isIndian: false, isFallback: true, reason: 'English male voice' };
+                }
+                if (anyEnVoices.length > 0) {
+                    return { voice: anyEnVoices[0], pitch: 0.82, rate: 0.95, isIndian: false, isFallback: true, reason: 'English voice simulated male (pitch 0.82)' };
+                }
+                return { voice: voiceList[0], pitch: 0.82, rate: 0.95, isIndian: false, isFallback: true, reason: 'Default voice simulated male (pitch 0.82)' };
+            } else {
+                const inFemale = enInVoices.find(v => isFemaleVoice(v)) || enInVoices[0];
+                if (inFemale) {
+                    return { voice: inFemale, pitch: 1.05, rate: 0.95, isIndian: true, isFallback: false, reason: 'en-IN female voice' };
+                }
+                const gbFemale = enGbVoices.find(v => isFemaleVoice(v)) || enGbVoices[0];
+                if (gbFemale) {
+                    return { voice: gbFemale, pitch: 1.05, rate: 0.95, isIndian: false, isFallback: true, reason: 'en-GB female voice' };
+                }
+                const usFemale = enUsVoices.find(v => isFemaleVoice(v)) || enUsVoices[0];
+                if (usFemale) {
+                    return { voice: usFemale, pitch: 1.05, rate: 0.95, isIndian: false, isFallback: true, reason: 'en-US female voice' };
+                }
+                if (anyEnVoices.length > 0) {
+                    const anyEnFemale = anyEnVoices.find(v => isFemaleVoice(v)) || anyEnVoices[0];
+                    return { voice: anyEnFemale, pitch: 1.05, rate: 0.95, isIndian: false, isFallback: true, reason: 'English female voice' };
+                }
+                return { voice: voiceList[0], pitch: 1.05, rate: 0.95, isIndian: false, isFallback: true, reason: 'Default voice female' };
+            }
+        }
+
+        function getOrSelectVoice() {
+            if (selectedVoice) {
+                console.log(`[Voice] Using cached voice: ${selectedVoice.name}`);
+                return {
+                    voice: selectedVoice,
+                    pitch: selectedVoiceConfig.pitch,
+                    rate: selectedVoiceConfig.rate
+                };
+            }
+
+            if (!voices.length && synth) {
+                voices = synth.getVoices() || [];
+            }
+
+            console.log(`[Voice] Initial selection — voices available: ${voices.length}`);
+            const result = resolveVoice(coachGender, voices);
+            selectedVoice = result.voice;
+            selectedVoiceConfig = result;
+
+            if (result.isFallback) {
+                console.log(`[Voice] Fallback used: ${result.reason} — pitch adjusted to ${result.pitch}`);
+            }
+            console.log(`[Voice Debug] Session gender: ${coachGender}, selected voice: ${selectedVoice ? selectedVoice.name : 'Default'}, lang: ${selectedVoice ? selectedVoice.lang : 'en'}, pitch: ${result.pitch}`);
+
+            return {
+                voice: selectedVoice,
+                pitch: selectedVoiceConfig.pitch,
+                rate: selectedVoiceConfig.rate
+            };
+        }
+
+        function loadVoices() {
+            voices = synth ? synth.getVoices() : [];
+            if (!selectedVoice && voices.length) {
+                getOrSelectVoice();
+            }
+        }
+
+        if (synth) {
+            loadVoices();
+            synth.addEventListener('voiceschanged', loadVoices);
+            synth.onvoiceschanged = loadVoices;
+            setTimeout(loadVoices, 500);
+        }
 
         function speak(text, onEndCallback, onErrorCallback) {
             if (!synth || !text || isMuted) {
@@ -116,15 +247,12 @@
 
                 const utterance = new SpeechSynthesisUtterance(text);
                 activeUtterance = utterance; // Retain reference to prevent GC clipping
-                utterance.rate   = 0.95;
-                utterance.pitch  = 1.0;
-                utterance.volume = 1.0;
 
-                const voices = synth.getVoices() || [];
-                const englishVoice = voices.find(v => v.lang.startsWith('en') && /natural|google|samantha|daniel/i.test(v.name))
-                                  || voices.find(v => v.lang.startsWith('en'))
-                                  || voices[0];
-                if (englishVoice) utterance.voice = englishVoice;
+                const voiceSetup = getOrSelectVoice();
+                utterance.rate   = voiceSetup.rate || 0.95;
+                utterance.pitch  = voiceSetup.pitch || 1.0;
+                utterance.volume = 1.0;
+                if (voiceSetup.voice) utterance.voice = voiceSetup.voice;
 
                 utterance.onstart = () => {
                     console.log('[PracticeRoom] TTS started.');
@@ -168,6 +296,7 @@
 
         function toggle() {
             isMuted = !isMuted;
+            selectedVoice = null; // Re-evaluate voice on toggle
             if (isMuted) {
                 cancel();
                 if (btnSpeaker) {
