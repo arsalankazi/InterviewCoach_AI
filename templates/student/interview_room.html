@@ -131,15 +131,30 @@
 
             <!-- Full Rectangular Video Feed Frame -->
             <div class="avatar-speaking-ring" id="avatar-speaking-ring">
-                <div class="interviewer-avatar avatar-photo-frame {% if interview_session.interviewer_gender == 'female' %}avatar-female{% else %}avatar-male{% endif %}"
+                <div class="interviewer-avatar avatar-photo-frame avatar-{{ interview_session.avatar_mode == 'faculty' and interview_session.faculty_avatar or (interview_session.interviewer_gender == 'female' and 'female' or 'male') }}"
+                     data-avatar="{{ interview_session.avatar_mode == 'faculty' and interview_session.faculty_avatar or interview_session.interviewer_gender }}"
                      id="sidebar-avatar">
                     
                     <!-- Portrait Base Layer -->
+                    {% if interview_session.avatar_mode == 'faculty' and interview_session.faculty_avatar == 'director' %}
+                    <img id="avatar-portrait-img"
+                         class="avatar-portrait-img"
+                         src="{{ url_for('static', filename='js/avatar/img/director.jpg') }}"
+                         alt="{{ interview_session.interviewer_name }} Portrait"
+                         loading="eager" />
+                    {% elif interview_session.avatar_mode == 'faculty' and interview_session.faculty_avatar == 'hod' %}
+                    <img id="avatar-portrait-img"
+                         class="avatar-portrait-img"
+                         src="{{ url_for('static', filename='js/avatar/img/hod.jpg') }}"
+                         alt="{{ interview_session.interviewer_name }} Portrait"
+                         loading="eager" />
+                    {% else %}
                     <img id="avatar-portrait-img"
                          class="avatar-portrait-img"
                          src="{{ url_for('static', filename='js/avatar/img/interviewer_' ~ interview_session.interviewer_gender ~ '.jpg') }}"
                          alt="{{ interview_session.interviewer_name }} Portrait"
                          loading="eager" />
+                    {% endif %}
 
                     <!-- Transparent Micro-Overlays Layer -->
                     <div class="avatar-overlays-layer" aria-hidden="true">
@@ -178,7 +193,14 @@
             <!-- Bottom-Right Name Badge -->
             <div class="tile-name-badge">
                 <span class="badge-icon">🎙️</span>
-                <span class="badge-text">{{ interview_session.interviewer_name }} (Interviewer)</span>
+                <span class="badge-text">
+                    {{ interview_session.interviewer_name }}
+                    {% if interview_session.avatar_mode == 'faculty' %}
+                        ({% if interview_session.faculty_avatar == 'director' %}Director, IMRD{% else %}HOD, MCA &amp; IMCA{% endif %})
+                    {% else %}
+                        (Interviewer)
+                    {% endif %}
+                </span>
             </div>
 
             <!-- Subtitle Caption Bar directly below video tile -->
@@ -335,18 +357,36 @@
             <div class="panel-card-body">
                 <div class="interviewer-profile-box">
                     <div class="profile-avatar-thumb">
-                        {% if interview_session.interviewer_gender == 'female' %}👩‍💼{% else %}👨‍💼{% endif %}
+                        {% if interview_session.avatar_mode == 'faculty' and interview_session.faculty_avatar == 'director' %}
+                            <img src="{{ url_for('static', filename='js/avatar/img/director.jpg') }}" alt="Director" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+                        {% elif interview_session.avatar_mode == 'faculty' and interview_session.faculty_avatar == 'hod' %}
+                            <img src="{{ url_for('static', filename='js/avatar/img/hod.jpg') }}" alt="HOD" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+                        {% elif interview_session.interviewer_gender == 'female' %}
+                            👩‍💼
+                        {% else %}
+                            👨‍💼
+                        {% endif %}
                     </div>
                     <div class="profile-info-wrap">
                         <h4 class="profile-name">{{ interview_session.interviewer_name }}</h4>
-                        <span class="profile-role-tag">{{ interview_session.job_role }} Lead</span>
+                        <span class="profile-role-tag">
+                            {% if interview_session.avatar_mode == 'faculty' %}
+                                {% if interview_session.faculty_avatar == 'director' %}Director, IMRD{% else %}HOD, MCA &amp; IMCA{% endif %}
+                            {% else %}
+                                {{ interview_session.job_role }} Lead
+                            {% endif %}
+                        </span>
                     </div>
                 </div>
 
                 <div class="persona-traits-box">
                     <span class="traits-label">Interviewer Persona:</span>
                     <p class="traits-text">
-                        {% if interview_session.interviewer_gender == 'female' %}
+                        {% if interview_session.avatar_mode == 'faculty' and interview_session.faculty_avatar == 'director' %}
+                            Director, IMRD — Academic leadership, institutional vision, strategic thinking, and leadership readiness.
+                        {% elif interview_session.avatar_mode == 'faculty' and interview_session.faculty_avatar == 'hod' %}
+                            HOD, MCA &amp; IMCA — Technical rigor, computer applications foundation, problem-solving, and practical development mastery.
+                        {% elif interview_session.interviewer_gender == 'female' %}
                             Perceptive, insightful, and focused on systematic reasoning and practical clarity.
                         {% else %}
                             Analytical, structured, and focused on technical precision and problem-solving depth.

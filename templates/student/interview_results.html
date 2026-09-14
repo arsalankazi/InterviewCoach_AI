@@ -53,6 +53,30 @@
     </div>
 
     {% else %}
+    {% if interview_session.avatar_mode == 'faculty' %}
+    <!-- Faculty Attribution Banner -->
+    <div class="faculty-results-header">
+        <div class="faculty-results-info">
+            {% if interview_session.faculty_avatar == 'director' %}
+                <img src="{{ url_for('static', filename='js/avatar/img/director.jpg') }}" alt="Dr. Vaishali Patil" class="faculty-results-thumb" />
+                <div class="faculty-results-text">
+                    <h3>Interview conducted by Dr. Vaishali Patil</h3>
+                    <p>Director, IMRD (Institute of Management Research and Development, Shirpur)</p>
+                </div>
+            {% else %}
+                <img src="{{ url_for('static', filename='js/avatar/img/hod.jpg') }}" alt="Dr. Manoj Behere" class="faculty-results-thumb" />
+                <div class="faculty-results-text">
+                    <h3>Interview conducted by Dr. Manoj Behere</h3>
+                    <p>HOD, MCA &amp; IMCA &bull; IMRD, Shirpur</p>
+                </div>
+            {% endif %}
+        </div>
+        <div class="college-banner-tag">
+            <span>🏫 IMRD Faculty Evaluation</span>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Overview Metrics Row -->
     <div class="results-score-grid">
         <!-- Overall Score Card -->

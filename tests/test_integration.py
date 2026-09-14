@@ -1475,6 +1475,152 @@ class TestPracticeModeWrapUpAndHistory(BaseTestCase):
         self.assertIn("Adaptive", html)
 
 
+class TestFacultyAvatars(BaseTestCase):
+    """Integration test suite for College Faculty Avatars (Director Dr. Vaishali Patil & HOD Dr. Manoj Behere)."""
+
+    def test_setup_saves_avatar_mode_and_faculty_avatar(self):
+        """POST /student/interviews/new/faculty saves avatar_mode='faculty' and faculty_avatar='director' with correct name and gender."""
+        register_and_login(self.client)
+        from models.interview_session import InterviewSession
+        from models.user import User
+
+        resp = self.client.post(
+            "/student/interviews/new/faculty",
+            data={
+                "faculty_avatar": "director",
+                "job_role": "Software Engineer",
+                "interview_type": "technical",
+                "total_questions": "8",
+            },
+            follow_redirects=False,
+        )
+        self.assertIn(resp.status_code, (302, 303))
+        self.assertIn("/student/interviews/", resp.headers["Location"])
+
+        with self.app.app_context():
+            user = User.get_by_email(SAMPLE_STUDENT["email"])
+            session = InterviewSession.get_latest_by_user(user.id)
+            self.assertIsNotNone(session)
+            self.assertEqual(session.avatar_mode, "faculty")
+            self.assertEqual(session.faculty_avatar, "director")
+            self.assertEqual(session.interviewer_name, "Dr. Vaishali Patil")
+            self.assertEqual(session.interviewer_gender, "female")
+
+    def test_faculty_setup_page_renders(self):
+        """GET /student/interviews/new/faculty renders 200 with college hero and both faculty cards."""
+        register_and_login(self.client)
+        resp = self.client.get("/student/interviews/new/faculty")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode("utf-8")
+        self.assertIn("IMRD Faculty Interview", html)
+        self.assertIn("college_background.jpg", html)
+        self.assertIn("Dr. Vaishali Patil", html)
+        self.assertIn("Dr. Manoj Behere", html)
+        self.assertIn("Director, IMRD", html)
+        self.assertIn("HOD, MCA", html)
+
+    def test_general_setup_does_not_show_faculty_option(self):
+        """GET /student/interviews/new renders 200 with Step 1 category choice and no faculty select dropdown."""
+        register_and_login(self.client)
+        resp = self.client.get("/student/interviews/new")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode("utf-8")
+        self.assertIn("Choose Interview Category", html)
+        self.assertIn("General Interview", html)
+        self.assertIn("College Specific Interview", html)
+        self.assertNotIn('name="faculty_avatar"', html)
+
+    def test_faculty_session_renders_director_avatar(self):
+        """GET /student/interviews/<id>/room renders data-avatar='director' and director.jpg."""
+        register_and_login(self.client)
+        from models.interview_session import InterviewSession
+        from models.user import User
+
+        with self.app.app_context():
+            user = User.get_by_email(SAMPLE_STUDENT["email"])
+            session = InterviewSession.create(
+                user_id=user.id,
+                interviewer_gender="female",
+                interviewer_name="Dr. Vaishali Patil",
+                job_role="Data Scientist",
+                avatar_mode="faculty",
+                faculty_avatar="director",
+            )
+            session_id = session.id
+
+        resp = self.client.get(f"/student/interviews/{session_id}/room")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode("utf-8")
+        self.assertIn('data-avatar="director"', html)
+        self.assertIn("director.jpg", html)
+        self.assertIn("Dr. Vaishali Patil", html)
+        self.assertIn("Director, IMRD", html)
+
+    def test_faculty_session_renders_hod_avatar(self):
+        """GET /student/interviews/<id>/room renders data-avatar='hod' and hod.jpg."""
+        register_and_login(self.client)
+        from models.interview_session import InterviewSession
+        from models.user import User
+
+        with self.app.app_context():
+            user = User.get_by_email(SAMPLE_STUDENT["email"])
+            session = InterviewSession.create(
+                user_id=user.id,
+                interviewer_gender="male",
+                interviewer_name="Dr. Manoj Behere",
+                job_role="Software Engineer",
+                avatar_mode="faculty",
+                faculty_avatar="hod",
+            )
+            session_id = session.id
+
+        resp = self.client.get(f"/student/interviews/{session_id}/room")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode("utf-8")
+        self.assertIn('data-avatar="hod"', html)
+        self.assertIn("hod.jpg", html)
+        self.assertIn("Dr. Manoj Behere", html)
+        self.assertIn("HOD, MCA", html)
+
+    def test_results_page_shows_faculty_header(self):
+        """GET /student/interviews/<id>/results shows faculty-results-header when avatar_mode='faculty'."""
+        register_and_login(self.client)
+        from models.interview_session import InterviewSession
+        from models.interview_report import InterviewReport
+        from models.user import User
+
+        with self.app.app_context():
+            user = User.get_by_email(SAMPLE_STUDENT["email"])
+            session = InterviewSession.create(
+                user_id=user.id,
+                interviewer_gender="female",
+                interviewer_name="Dr. Vaishali Patil",
+                job_role="Software Engineer",
+                avatar_mode="faculty",
+                faculty_avatar="director",
+            )
+            session.complete()
+            session_id = session.id
+            InterviewReport.create(
+                session_id=session_id,
+                technical_score=85,
+                communication_score=90,
+                overall_score=87,
+                confidence_level="High",
+                strengths=["Great communication"],
+                weaknesses=["None"],
+                suggestions=["Keep practicing"],
+                analysis_available=True,
+            )
+
+        resp = self.client.get(f"/student/interviews/{session_id}/results")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode("utf-8")
+        self.assertIn("faculty-results-header", html)
+        self.assertIn("Interview conducted by Dr. Vaishali Patil", html)
+        self.assertIn("director.jpg", html)
+
+
 # ===========================================================================
 # RUNNER
 # ===========================================================================
@@ -1495,6 +1641,7 @@ if __name__ == "__main__":
         TestIntroFeedback,
         TestPracticeModeDifficulty,
         TestPracticeModeWrapUpAndHistory,
+        TestFacultyAvatars,
     ]:
         suite.addTests(loader.loadTestsFromTestCase(cls))
 

@@ -386,17 +386,16 @@ def update_skills():
 
 
 # ---------------------------------------------------------
-# Interview Setup Routes (Module 8)
+# Interview Setup Routes (Module 8 & Faculty Personas)
 # ---------------------------------------------------------
 
 @student_bp.route('/interviews/new', methods=['GET', 'POST'])
 @login_required
 def interview_setup():
     """
-    Interview Setup page.
-    GET:  Render the setup form (gender selector, interviewer name, job role).
-    POST: Validate inputs, persist a new interview session, redirect to dashboard
-          with an informational flash (interview room built in Module 11).
+    General Interview Setup page.
+    GET:  Render the setup form (category selector, gender/persona, interviewer name, job role).
+    POST: Validate inputs, persist a new general interview session, redirect to room.
     """
     user_id = session.get('student_id') or session.get('user_id')
     user = User.get_by_id(user_id)
@@ -406,6 +405,8 @@ def interview_setup():
         return redirect(url_for('auth.logout'))
 
     if request.method == 'POST':
+        avatar_mode    = request.form.get('avatar_mode', 'general').strip()
+        faculty_avatar = request.form.get('faculty_avatar', '').strip() or None
         gender         = request.form.get('interviewer_gender', '').strip()
         name           = request.form.get('interviewer_name', '').strip()
         role           = request.form.get('job_role', '').strip()
@@ -416,15 +417,31 @@ def interview_setup():
 
         errors = []
 
-        # ── Validate gender ──────────────────────────────────────────────
-        if gender not in ('male', 'female'):
-            errors.append("Please select an interviewer (Male or Female).")
+        # ── Validate avatar mode & faculty persona ───────────────────────
+        if avatar_mode == 'faculty':
+            if faculty_avatar == 'director':
+                name = 'Dr. Vaishali Patil'
+                gender = 'female'
+            elif faculty_avatar == 'hod':
+                name = 'Dr. Manoj Behere'
+                gender = 'male'
+            else:
+                errors.append("Please select a valid college faculty member (Director or HOD).")
+                avatar_mode = 'general'
+                faculty_avatar = None
+        else:
+            avatar_mode = 'general'
+            faculty_avatar = None
 
-        # ── Validate interviewer name ────────────────────────────────────
-        if not name:
-            errors.append("Please enter a name for your interviewer.")
-        elif len(name) > 50:
-            errors.append("Interviewer name must be 50 characters or fewer.")
+            # ── Validate gender ──────────────────────────────────────────
+            if gender not in ('male', 'female'):
+                errors.append("Please select an interviewer (Male or Female).")
+
+            # ── Validate interviewer name ────────────────────────────────
+            if not name:
+                errors.append("Please enter a name for your interviewer.")
+            elif len(name) > 50:
+                errors.append("Interviewer name must be 50 characters or fewer.")
 
         # ── Validate job role ────────────────────────────────────────────
         if role == 'Other':
@@ -480,7 +497,9 @@ def interview_setup():
             interviewer_name=name,
             job_role=resolved_role,
             interview_type=interview_type,
-            total_questions=resolved_total_q
+            total_questions=resolved_total_q,
+            avatar_mode=avatar_mode,
+            faculty_avatar=faculty_avatar
         )
 
         flash(
@@ -489,9 +508,120 @@ def interview_setup():
         )
         return redirect(url_for('student.interview_room', session_id=created_session.id))
 
-    # GET — render empty setup form
+    # GET — render setup form
     return render_template(
         'student/interview_setup.html',
+        user=user,
+        job_roles=JOB_ROLES,
+        form_data={}
+    )
+
+
+@student_bp.route('/interviews/new/faculty', methods=['GET', 'POST'])
+@login_required
+def interview_setup_faculty():
+    """
+    Dedicated IMRD College Faculty Interview Setup page.
+    GET:  Render the college faculty setup form with college background banner and faculty cards.
+    POST: Validate faculty selection and parameters, persist session, redirect to room.
+    """
+    user_id = session.get('student_id') or session.get('user_id')
+    user = User.get_by_id(user_id)
+
+    if not user:
+        flash("User session invalid. Please log in again.", "error")
+        return redirect(url_for('auth.logout'))
+
+    if request.method == 'POST':
+        faculty_avatar = request.form.get('faculty_avatar', '').strip()
+        role           = request.form.get('job_role', '').strip()
+        custom         = request.form.get('custom_role', '').strip()
+        interview_type = request.form.get('interview_type', 'mixed').strip()
+        total_q_raw    = request.form.get('total_questions', '8').strip()
+        custom_q_raw   = request.form.get('custom_questions', '').strip()
+
+        errors = []
+
+        # ── Auto-assign faculty persona details ──────────────────────────
+        if faculty_avatar == 'director':
+            name = 'Dr. Vaishali Patil'
+            gender = 'female'
+        elif faculty_avatar == 'hod':
+            name = 'Dr. Manoj Behere'
+            gender = 'male'
+        else:
+            errors.append("Please select a faculty interviewer (Director or HOD).")
+            name = ''
+            gender = ''
+
+        # ── Validate job role ────────────────────────────────────────────
+        if role == 'Other':
+            if not custom:
+                errors.append("Please specify your job role in the custom field.")
+            elif len(custom) > 80:
+                errors.append("Custom job role must be 80 characters or fewer.")
+            else:
+                resolved_role = custom
+        elif role in JOB_ROLES:
+            resolved_role = role
+        else:
+            errors.append("Please select a valid job role from the list.")
+            resolved_role = ''
+
+        # ── Validate interview type ──────────────────────────────────────
+        if interview_type not in ('technical', 'general', 'mixed'):
+            errors.append("Please select a valid interview type (Technical, General/HR, or Mixed).")
+            interview_type = 'mixed'
+
+        # ── Validate total questions ─────────────────────────────────────
+        if total_q_raw == 'custom':
+            try:
+                resolved_total_q = int(custom_q_raw)
+                if not (3 <= resolved_total_q <= 20):
+                    errors.append("Custom number of questions must be between 3 and 20.")
+            except (ValueError, TypeError):
+                errors.append("Please enter a valid number of questions between 3 and 20.")
+                resolved_total_q = 8
+        else:
+            try:
+                resolved_total_q = int(total_q_raw)
+                if not (3 <= resolved_total_q <= 20):
+                    errors.append("Number of questions must be between 3 and 20.")
+            except (ValueError, TypeError):
+                errors.append("Please select a valid number of questions.")
+                resolved_total_q = 8
+
+        if errors:
+            for msg in errors:
+                flash(msg, "error")
+            return render_template(
+                'student/interview_setup_faculty.html',
+                user=user,
+                job_roles=JOB_ROLES,
+                form_data=request.form
+            ), 422
+
+        # ── Persist faculty interview session ────────────────────────────
+        created_session = InterviewSession.create(
+            user_id=user.id,
+            interviewer_gender=gender,
+            interviewer_name=name,
+            job_role=resolved_role,
+            interview_type=interview_type,
+            total_questions=resolved_total_q,
+            avatar_mode='faculty',
+            faculty_avatar=faculty_avatar
+        )
+
+        flash(
+            f"Faculty interview session with {name} ({resolved_role}) configured! Welcome to your interview room.",
+            "success"
+        )
+        return redirect(url_for('student.interview_room', session_id=created_session.id))
+
+    # GET — render faculty setup form
+    return render_template(
+        'student/interview_setup_faculty.html',
         user=user,
         job_roles=JOB_ROLES,
         form_data={}

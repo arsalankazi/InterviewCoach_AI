@@ -1,154 +1,90 @@
 {% extends "base.html" %}
 
-{% block title %}Interview Setup - InterviewCoach AI{% endblock %}
+{% block title %}IMRD Faculty Interview Setup - InterviewCoach AI{% endblock %}
 
 {% block content %}
 <div class="interview-setup-container">
-    <!-- Header -->
-    <div class="profile-header">
-        <a href="{{ url_for('student.dashboard') }}" class="back-link">&larr; Back to Dashboard</a>
-        <h1 class="profile-title">Interview Setup</h1>
-        <p class="profile-subtitle">
-            Configure your AI interviewer persona and target job role to customize your mock interview session.
-        </p>
+    <!-- Hero Banner with College Campus Background -->
+    <div class="faculty-hero-banner reveal-on-scroll" style="background-image: linear-gradient(135deg, rgba(11, 15, 25, 0.88) 0%, rgba(15, 23, 42, 0.94) 100%), url('{{ url_for('static', filename='js/avatar/img/college_background.jpg') }}');">
+        <a href="{{ url_for('student.interview_setup') }}" class="back-link faculty-back-link">&larr; Back to Interview Setup</a>
+        <div class="faculty-hero-content">
+            <div class="welcome-badge" style="background: rgba(99, 102, 241, 0.25); color: #c7d2fe; border: 1px solid rgba(99, 102, 241, 0.4); margin-bottom: 0.5rem;">
+                IMRD Campus Edition
+            </div>
+            <h1 class="faculty-hero-title">IMRD Faculty Interview</h1>
+            <p class="faculty-hero-subtitle">
+                Choose your interviewer from the faculty and prepare for your college campus placement and technical viva.
+            </p>
+        </div>
     </div>
 
     <!-- Setup Form Card -->
-    <div class="setup-form-card">
-        <form action="{{ url_for('student.interview_setup') }}" method="POST" class="setup-form" id="interview-setup-form">
-            <!-- Hidden avatar_mode field for General flow -->
-            <input type="hidden" name="avatar_mode" value="general">
+    <div class="setup-form-card" style="margin-top: 1.5rem;">
+        <form action="{{ url_for('student.interview_setup_faculty') }}" method="POST" class="setup-form" id="faculty-setup-form">
             
-            <!-- Step 1: Choose Interview Category -->
-            <div class="setup-section" id="section-step-1">
+            <!-- Step 1: Choose Faculty Member -->
+            <div class="setup-section" id="section-faculty-picker">
                 <div class="setup-section-header">
                     <span class="setup-step-badge">Step 1</span>
-                    <h2 class="setup-section-title">Choose Interview Category</h2>
-                    <p class="setup-section-desc">Select whether you want a corporate AI persona or your authentic college faculty interviewer.</p>
+                    <h2 class="setup-section-title">Select Faculty Interviewer</h2>
+                    <p class="setup-section-desc">Choose which respected faculty member will conduct your personalized mock interview.</p>
                 </div>
 
-                <div class="persona-grid category-mode-grid" id="category-cards-grid">
-                    <!-- General Interview Card (Selected by default) -->
-                    <label class="persona-card selected" id="card-cat-general">
+                <div class="faculty-grid">
+                    <!-- Director Card (Dr. Vaishali Patil) -->
+                    <label class="faculty-card {% if form_data.get('faculty_avatar') == 'director' %}selected{% endif %}" id="card-faculty-director">
                         <input 
                             type="radio" 
-                            name="interview_category" 
-                            value="general" 
-                            class="persona-radio" 
-                            checked
-                        >
-                        <div class="persona-radio-custom"></div>
-                        <div class="persona-avatar-wrapper avatar-male">
-                            <span class="persona-avatar-icon">🎭</span>
-                        </div>
-                        <div class="persona-info">
-                            <h3 class="persona-name">General Interview</h3>
-                            <span class="persona-tag persona-tag-male">Standard AI</span>
-                            <p class="persona-desc">Standard AI interviewer (Alex Walker or Sarah Jenkins) with customizable names and personas.</p>
-                        </div>
-                    </label>
-
-                    <!-- College Specific Interview Card (Navigates to dedicated faculty page) -->
-                    <a href="{{ url_for('student.interview_setup_faculty') }}" class="persona-card category-link-card" id="card-cat-faculty" style="text-decoration: none;">
-                        <div class="persona-radio-custom" style="opacity: 0.5;"></div>
-                        <div class="persona-avatar-wrapper avatar-female" style="background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.4);">
-                            <span class="persona-avatar-icon">🏫</span>
-                        </div>
-                        <div class="persona-info">
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <h3 class="persona-name" style="margin: 0;">College Specific Interview</h3>
-                                <span style="font-size: 0.8rem; color: #818cf8; font-weight: 600;">Explore &rarr;</span>
-                            </div>
-                            <span class="persona-tag persona-tag-female" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border-color: rgba(99, 102, 241, 0.4);">IMRD Faculty</span>
-                            <p class="persona-desc">Interview with your IMRD college faculty (Director Dr. Vaishali Patil or HOD Dr. Manoj Behere).</p>
-                        </div>
-                    </a>
-                </div>
-            </div>
-
-            <!-- Step 2: Choose Interviewer Persona -->
-            <div class="setup-section" id="section-step-2">
-                <div class="setup-section-header">
-                    <span class="setup-step-badge">Step 2</span>
-                    <h2 class="setup-section-title">Select Interviewer Gender &amp; Persona</h2>
-                    <p class="setup-section-desc">Choose the avatar persona and questioning style for your general mock interview.</p>
-                </div>
-
-                <div class="persona-grid" id="persona-cards-grid">
-                    <!-- Male Persona Card -->
-                    <label class="persona-card {% if form_data.get('interviewer_gender', 'male') == 'male' %}selected{% endif %}" id="card-male">
-                        <input 
-                            type="radio" 
-                            name="interviewer_gender" 
-                            value="male" 
-                            class="persona-radio" 
-                            {% if form_data.get('interviewer_gender', 'male') == 'male' %}checked{% endif %}
-                            onchange="selectPersona('male', 'Alex Walker')"
-                        >
-                        <div class="persona-radio-custom"></div>
-                        <div class="persona-avatar-wrapper avatar-male">
-                            <span class="persona-avatar-icon">👨‍💼</span>
-                        </div>
-                        <div class="persona-info">
-                            <h3 class="persona-name">Alex</h3>
-                            <span class="persona-tag persona-tag-male">Male Persona</span>
-                            <p class="persona-desc">Analytical and structured questioning with a focus on problem-solving methodology.</p>
-                        </div>
-                    </label>
-
-                    <!-- Female Persona Card -->
-                    <label class="persona-card {% if form_data.get('interviewer_gender') == 'female' %}selected{% endif %}" id="card-female">
-                        <input 
-                            type="radio" 
-                            name="interviewer_gender" 
-                            value="female" 
-                            class="persona-radio" 
-                            {% if form_data.get('interviewer_gender') == 'female' %}checked{% endif %}
-                            onchange="selectPersona('female', 'Sarah Jenkins')"
-                        >
-                        <div class="persona-radio-custom"></div>
-                        <div class="persona-avatar-wrapper avatar-female">
-                            <span class="persona-avatar-icon">👩‍💼</span>
-                        </div>
-                        <div class="persona-info">
-                            <h3 class="persona-name">Sarah</h3>
-                            <span class="persona-tag persona-tag-female">Female Persona</span>
-                            <p class="persona-desc">Comprehensive and scenario-focused evaluation with attention to communication clarity.</p>
-                        </div>
-                    </label>
-                </div>
-
-                <!-- Custom Interviewer Name -->
-                <div class="setup-field-group" style="margin-top: 1.5rem;">
-                    <label for="interviewer_name" class="form-label">Interviewer Display Name <span class="required-star">*</span></label>
-                    <div class="name-input-row">
-                        <input 
-                            type="text" 
-                            name="interviewer_name" 
-                            id="interviewer_name" 
-                            class="form-input setup-input" 
-                            placeholder="e.g. Alex Walker"
-                            value="{{ form_data.get('interviewer_name', 'Alex Walker') }}" 
-                            maxlength="50" 
+                            name="faculty_avatar" 
+                            value="director" 
+                            class="faculty-radio" 
+                            {% if form_data.get('faculty_avatar') == 'director' %}checked{% endif %}
+                            onchange="selectFaculty('director')"
                             required
                         >
-                        <div class="name-presets">
-                            <span class="preset-label">Quick Suggestions:</span>
-                            <button type="button" class="btn-preset" onclick="setName('Alex Walker')">Alex Walker</button>
-                            <button type="button" class="btn-preset" onclick="setName('Sarah Jenkins')">Sarah Jenkins</button>
-                            <button type="button" class="btn-preset" onclick="setName('Dr. Marcus Vance')">Dr. Marcus Vance</button>
-                            <button type="button" class="btn-preset" onclick="setName('Elena Rostova')">Elena Rostova</button>
+                        <div class="faculty-radio-custom"></div>
+                        <div class="faculty-photo-wrapper">
+                            <img src="{{ url_for('static', filename='js/avatar/img/director.jpg') }}" alt="Dr. Vaishali Patil" class="faculty-photo-thumb" />
                         </div>
-                    </div>
+                        <div class="faculty-info-box">
+                            <span class="faculty-badge faculty-badge-director">Director</span>
+                            <h3 class="faculty-card-name">Dr. Vaishali Patil</h3>
+                            <p class="faculty-card-role">Director, IMRD</p>
+                            <p class="faculty-card-desc">Comprehensive leadership, core concept evaluation, analytical thinking, and strategic communication.</p>
+                        </div>
+                    </label>
+
+                    <!-- HOD Card (Dr. Manoj Behere) -->
+                    <label class="faculty-card {% if form_data.get('faculty_avatar') == 'hod' %}selected{% endif %}" id="card-faculty-hod">
+                        <input 
+                            type="radio" 
+                            name="faculty_avatar" 
+                            value="hod" 
+                            class="faculty-radio" 
+                            {% if form_data.get('faculty_avatar') == 'hod' %}checked{% endif %}
+                            onchange="selectFaculty('hod')"
+                            required
+                        >
+                        <div class="faculty-radio-custom"></div>
+                        <div class="faculty-photo-wrapper">
+                            <img src="{{ url_for('static', filename='js/avatar/img/hod.jpg') }}" alt="Dr. Manoj Behere" class="faculty-photo-thumb" />
+                        </div>
+                        <div class="faculty-info-box">
+                            <span class="faculty-badge faculty-badge-hod">HOD, MCA &amp; IMCA</span>
+                            <h3 class="faculty-card-name">Dr. Manoj Behere</h3>
+                            <p class="faculty-card-role">HOD, MCA &amp; IMCA</p>
+                            <p class="faculty-card-desc">Rigorous technical questioning, software engineering principles, algorithms, and applied problem solving.</p>
+                        </div>
+                    </label>
                 </div>
             </div>
 
-            <!-- Step 3: Target Job Role -->
-            <div class="setup-section" id="section-step-3">
+            <!-- Step 2: Target Job Role -->
+            <div class="setup-section" id="section-faculty-role">
                 <div class="setup-section-header">
-                    <span class="setup-step-badge">Step 3</span>
+                    <span class="setup-step-badge">Step 2</span>
                     <h2 class="setup-section-title">Target Job Role</h2>
-                    <p class="setup-section-desc">Select the position you are practicing for to generate tailored questions.</p>
+                    <p class="setup-section-desc">Select the position you are practicing for to generate tailored faculty interview questions.</p>
                 </div>
 
                 <div class="setup-field-group">
@@ -171,7 +107,7 @@
                         name="custom_role" 
                         id="custom_role" 
                         class="form-input setup-input" 
-                        placeholder="e.g. Cloud Security Architect, Product Manager…"
+                        placeholder="e.g. Full Stack Developer, Data Scientist…"
                         value="{{ form_data.get('custom_role', '') }}" 
                         maxlength="80"
                     >
@@ -179,12 +115,12 @@
                 </div>
             </div>
 
-            <!-- Step 4: Interview Type -->
-            <div class="setup-section" id="section-step-4">
+            <!-- Step 3: Interview Type -->
+            <div class="setup-section" id="section-faculty-type">
                 <div class="setup-section-header">
-                    <span class="setup-step-badge">Step 4</span>
+                    <span class="setup-step-badge">Step 3</span>
                     <h2 class="setup-section-title">Select Interview Type</h2>
-                    <p class="setup-section-desc">Choose the focus and questioning style for your interview.</p>
+                    <p class="setup-section-desc">Choose the focus and questioning style for your faculty interview.</p>
                 </div>
 
                 <div class="persona-grid type-grid">
@@ -226,7 +162,7 @@
                         <div class="persona-info">
                             <h3 class="persona-name">General / HR</h3>
                             <span class="persona-tag persona-tag-female">Behavioral</span>
-                            <p class="persona-desc">Introduction, behavioral, and HR-style questions.</p>
+                            <p class="persona-desc">Introduction, behavioral, and viva/HR questions.</p>
                         </div>
                     </label>
 
@@ -247,18 +183,18 @@
                         <div class="persona-info">
                             <h3 class="persona-name">Mixed (Both)</h3>
                             <span class="persona-tag persona-tag-male">Recommended</span>
-                            <p class="persona-desc">Balanced technical and general questions.</p>
+                            <p class="persona-desc">Balanced technical and concept questions.</p>
                         </div>
                     </label>
                 </div>
             </div>
 
-            <!-- Step 5: Number of Questions -->
-            <div class="setup-section" id="section-step-5">
+            <!-- Step 4: Number of Questions -->
+            <div class="setup-section" id="section-faculty-questions">
                 <div class="setup-section-header">
-                    <span class="setup-step-badge">Step 5</span>
+                    <span class="setup-step-badge">Step 4</span>
                     <h2 class="setup-section-title">Number of Questions</h2>
-                    <p class="setup-section-desc">Select how many questions the AI interviewer should ask.</p>
+                    <p class="setup-section-desc">Select how many questions the faculty interviewer should ask.</p>
                 </div>
 
                 <div class="setup-field-group">
@@ -293,18 +229,18 @@
             <div class="setup-info-banner">
                 <span class="setup-info-icon">💡</span>
                 <div class="setup-info-content">
-                    <strong>Tailored Session:</strong>
-                    Your uploaded resume, detected skills, interview type, and target job role will be combined to formulate realistic interview questions.
+                    <strong>Authentic Faculty Experience:</strong>
+                    The selected faculty interviewer will evaluate your answers with photo-realistic micro-expressions and tailored feedback matching department standards.
                 </div>
             </div>
 
             <!-- Form Actions -->
             <div class="setup-actions">
-                <button type="submit" class="btn btn-primary btn-setup-submit" id="submit-setup-btn">
-                    <span>🚀 Confirm &amp; Setup Session</span>
+                <button type="submit" class="btn btn-primary btn-setup-submit" id="submit-faculty-btn">
+                    <span>🚀 Start Faculty Interview</span>
                 </button>
-                <a href="{{ url_for('student.dashboard') }}" class="btn btn-outline">
-                    Cancel
+                <a href="{{ url_for('student.interview_setup') }}" class="btn btn-outline">
+                    Switch to General Setup
                 </a>
             </div>
 
@@ -315,22 +251,16 @@
 
 {% block extra_scripts %}
 <script>
-function selectPersona(gender, suggestedName) {
-    const cardMale = document.getElementById('card-male');
-    const cardFemale = document.getElementById('card-female');
-    const nameInput = document.getElementById('interviewer_name');
+function selectFaculty(facultyKey) {
+    const cardDirector = document.getElementById('card-faculty-director');
+    const cardHod = document.getElementById('card-faculty-hod');
 
-    if (gender === 'male') {
-        cardMale.classList.add('selected');
-        cardFemale.classList.remove('selected');
-    } else {
-        cardFemale.classList.add('selected');
-        cardMale.classList.remove('selected');
-    }
-
-    // Update name input if it is empty or matching a default suggested name
-    if (nameInput && (!nameInput.value.trim() || nameInput.value === 'Alex Walker' || nameInput.value === 'Sarah Jenkins')) {
-        nameInput.value = suggestedName;
+    if (facultyKey === 'director') {
+        if (cardDirector) cardDirector.classList.add('selected');
+        if (cardHod) cardHod.classList.remove('selected');
+    } else if (facultyKey === 'hod') {
+        if (cardHod) cardHod.classList.add('selected');
+        if (cardDirector) cardDirector.classList.remove('selected');
     }
 }
 
@@ -342,14 +272,6 @@ function selectInterviewType(type) {
     if (cardTech) cardTech.classList.toggle('selected', type === 'technical');
     if (cardGen) cardGen.classList.toggle('selected', type === 'general');
     if (cardMixed) cardMixed.classList.toggle('selected', type === 'mixed');
-}
-
-function setName(name) {
-    const nameInput = document.getElementById('interviewer_name');
-    if (nameInput) {
-        nameInput.value = name;
-        nameInput.focus();
-    }
 }
 
 function handleRoleChange(value) {
@@ -388,6 +310,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const qSelect = document.getElementById('total_questions');
     if (qSelect) {
         handleQuestionCountChange(qSelect.value);
+    }
+    const checkedRadio = document.querySelector('input[name="faculty_avatar"]:checked');
+    if (checkedRadio) {
+        selectFaculty(checkedRadio.value);
     }
 });
 </script>

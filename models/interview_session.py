@@ -32,6 +32,8 @@ class InterviewSession:
         interview_type='mixed',
         total_questions=8,
         difficulty_level='medium',
+        avatar_mode='general',
+        faculty_avatar=None,
         created_at=None
     ):
         self.id = id
@@ -44,6 +46,8 @@ class InterviewSession:
         self.interview_type = interview_type
         self.total_questions = total_questions
         self.difficulty_level = difficulty_level
+        self.avatar_mode = avatar_mode
+        self.faculty_avatar = faculty_avatar
         self.created_at = created_at
 
     # ------------------------------------------------------------------
@@ -53,7 +57,8 @@ class InterviewSession:
     @classmethod
     def create(cls, user_id: int, interviewer_gender: str, interviewer_name: str, job_role: str,
                 session_type: str = 'full_interview', interview_type: str = 'mixed',
-                total_questions: int = 8, difficulty_level: str = 'medium'):
+                total_questions: int = 8, difficulty_level: str = 'medium',
+                avatar_mode: str = 'general', faculty_avatar: str = None):
         """
         Insert a new interview session row with status='setup'.
         Returns the created InterviewSession instance.
@@ -67,6 +72,8 @@ class InterviewSession:
             interview_type:     'technical', 'general', or 'mixed' (default).
             total_questions:    Number of questions for this session (default 8, min 3, max 20).
             difficulty_level:   'easy', 'medium' (default), 'hard', or 'adaptive'.
+            avatar_mode:        'general' (default) or 'faculty'.
+            faculty_avatar:     'director' or 'hod' (if avatar_mode is 'faculty', else None).
         """
         if session_type not in ('full_interview', 'practice'):
             raise ValueError(f"Invalid session_type '{session_type}'.")
@@ -76,6 +83,13 @@ class InterviewSession:
             raise ValueError("total_questions must be an integer between 3 and 20.")
         if difficulty_level not in ('easy', 'medium', 'hard', 'adaptive'):
             difficulty_level = 'medium'
+        if avatar_mode not in ('general', 'faculty'):
+            avatar_mode = 'general'
+        if avatar_mode == 'faculty':
+            if faculty_avatar not in ('director', 'hod'):
+                raise ValueError(f"Invalid faculty_avatar '{faculty_avatar}'.")
+        else:
+            faculty_avatar = None
 
         total_questions = int(total_questions)
         db = get_db()
@@ -83,10 +97,10 @@ class InterviewSession:
         cursor.execute(
             """
             INSERT INTO interview_sessions
-                (user_id, interviewer_gender, interviewer_name, job_role, status, session_type, interview_type, total_questions, difficulty_level)
-            VALUES (?, ?, ?, ?, 'setup', ?, ?, ?, ?);
+                (user_id, interviewer_gender, interviewer_name, job_role, status, session_type, interview_type, total_questions, difficulty_level, avatar_mode, faculty_avatar)
+            VALUES (?, ?, ?, ?, 'setup', ?, ?, ?, ?, ?, ?);
             """,
-            (user_id, interviewer_gender, interviewer_name.strip(), job_role.strip(), session_type, interview_type, total_questions, difficulty_level)
+            (user_id, interviewer_gender, interviewer_name.strip(), job_role.strip(), session_type, interview_type, total_questions, difficulty_level, avatar_mode, faculty_avatar)
         )
         db.commit()
         session_id = cursor.lastrowid
@@ -316,6 +330,8 @@ class InterviewSession:
                     s.interview_type,
                     s.total_questions,
                     s.difficulty_level,
+                    s.avatar_mode,
+                    s.faculty_avatar,
                     s.created_at AS session_created_at,
                     r.id AS report_id,
                     r.technical_score,
@@ -345,6 +361,8 @@ class InterviewSession:
                     s.interview_type,
                     s.total_questions,
                     s.difficulty_level,
+                    s.avatar_mode,
+                    s.faculty_avatar,
                     s.created_at AS session_created_at,
                     r.id AS report_id,
                     r.technical_score,
@@ -376,6 +394,8 @@ class InterviewSession:
                 'interview_type': row['interview_type'] if 'interview_type' in keys else 'mixed',
                 'total_questions': row['total_questions'] if 'total_questions' in keys else 8,
                 'difficulty_level': row['difficulty_level'] if 'difficulty_level' in keys else 'medium',
+                'avatar_mode': row['avatar_mode'] if 'avatar_mode' in keys else 'general',
+                'faculty_avatar': row['faculty_avatar'] if 'faculty_avatar' in keys else None,
                 'session_created_at': safe_format_datetime(row['session_created_at'], fmt='%Y-%m-%d %H:%M:%S', fallback=None),
                 'report_id': row['report_id'],
                 'technical_score': row['technical_score'],
@@ -407,6 +427,8 @@ class InterviewSession:
             interview_type=row['interview_type'] if 'interview_type' in keys else 'mixed',
             total_questions=row['total_questions'] if 'total_questions' in keys else 8,
             difficulty_level=row['difficulty_level'] if 'difficulty_level' in keys else 'medium',
+            avatar_mode=row['avatar_mode'] if 'avatar_mode' in keys else 'general',
+            faculty_avatar=row['faculty_avatar'] if 'faculty_avatar' in keys else None,
             created_at=row['created_at']
         )
 
@@ -423,5 +445,7 @@ class InterviewSession:
             'interview_type': self.interview_type,
             'total_questions': self.total_questions,
             'difficulty_level': self.difficulty_level,
+            'avatar_mode': self.avatar_mode,
+            'faculty_avatar': self.faculty_avatar,
             'created_at': str(self.created_at) if self.created_at else None
         }

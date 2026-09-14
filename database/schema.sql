@@ -38,6 +38,10 @@ CREATE TABLE IF NOT EXISTS interview_sessions (
                                CHECK(total_questions >= 3 AND total_questions <= 20),
     difficulty_level   TEXT    NOT NULL DEFAULT 'medium'
                                CHECK(difficulty_level IN ('easy', 'medium', 'hard', 'adaptive')),
+    avatar_mode        TEXT    NOT NULL DEFAULT 'general'
+                               CHECK(avatar_mode IN ('general', 'faculty')),
+    faculty_avatar     TEXT    DEFAULT NULL
+                               CHECK(faculty_avatar IS NULL OR faculty_avatar IN ('director', 'hod')),
     created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

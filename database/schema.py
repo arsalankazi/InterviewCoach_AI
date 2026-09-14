@@ -46,6 +46,8 @@ def _run_postgres_migrations():
         "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS interview_type VARCHAR(30) NOT NULL DEFAULT 'mixed';",
         "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS total_questions INTEGER NOT NULL DEFAULT 8;",
         "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS difficulty_level VARCHAR(30) NOT NULL DEFAULT 'medium';",
+        "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS avatar_mode VARCHAR(20) NOT NULL DEFAULT 'general';",
+        "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS faculty_avatar VARCHAR(50) DEFAULT NULL;",
         "ALTER TABLE interview_reports ADD COLUMN IF NOT EXISTS introduction_feedback TEXT DEFAULT NULL;",
         "CREATE INDEX IF NOT EXISTS idx_sessions_type ON interview_sessions(session_type);",
         "CREATE INDEX IF NOT EXISTS idx_sessions_interview_type ON interview_sessions(interview_type);",
@@ -169,6 +171,16 @@ def _run_sqlite_migrations():
         cursor.execute(
             "ALTER TABLE interview_sessions "
             "ADD COLUMN difficulty_level TEXT NOT NULL DEFAULT 'medium';"
+        )
+    if 'avatar_mode' not in session_cols:
+        cursor.execute(
+            "ALTER TABLE interview_sessions "
+            "ADD COLUMN avatar_mode TEXT NOT NULL DEFAULT 'general';"
+        )
+    if 'faculty_avatar' not in session_cols:
+        cursor.execute(
+            "ALTER TABLE interview_sessions "
+            "ADD COLUMN faculty_avatar TEXT DEFAULT NULL;"
         )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_sessions_type ON interview_sessions(session_type);"

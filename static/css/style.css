@@ -2471,8 +2471,9 @@ a.skill-badge-more:hover {
 /* ---------------------------------------------------------
    Photo-Based AI Interviewer Avatar & Calibrated Overlays
 --------------------------------------------------------- */
-/* Male Portrait Calibrated Coordinates */
-.avatar-male {
+/* Male Portrait Calibrated Coordinates (Alex Walker) */
+.avatar-male,
+.avatar-photo-frame[data-avatar="male"] {
   --eye-left-x: 56.2%;
   --eye-left-y: 30.6%;
   --eye-right-x: 42.1%;
@@ -2493,8 +2494,9 @@ a.skill-badge-more:hover {
   --lip-color: #8c322b;
 }
 
-/* Female Portrait Calibrated Coordinates */
-.avatar-female {
+/* Female Portrait Calibrated Coordinates (Sarah Jenkins) */
+.avatar-female,
+.avatar-photo-frame[data-avatar="female"] {
   --eye-left-x: 57.4%;
   --eye-left-y: 32.4%;
   --eye-right-x: 42.1%;
@@ -2513,6 +2515,284 @@ a.skill-badge-more:hover {
   --mouth-right-y: 46.6%;
   --eyelid-tone: #e6ab90;
   --lip-color: #b91c1c;
+}
+
+/* Director Calibrated Coordinates (Dr. Vaishali Patil) */
+.avatar-director,
+.avatar-photo-frame[data-avatar="director"] {
+  --eye-left-x: 59.3%;
+  --eye-left-y: 29.7%;
+  --eye-right-x: 41.0%;
+  --eye-right-y: 30.3%;
+  --eye-size-w: 6.2%;
+  --eye-size-h: 2.3%;
+  --brow-left-x: 58.7%;
+  --brow-left-y: 25.5%;
+  --brow-right-x: 40.1%;
+  --brow-right-y: 26.1%;
+  --mouth-x: 50.4%;
+  --mouth-y: 43.8%;
+  --mouth-left-x: 57.3%;
+  --mouth-left-y: 43.1%;
+  --mouth-right-x: 44.7%;
+  --mouth-right-y: 43.6%;
+  --eyelid-tone: #e6ab90;
+  --lip-color: #b91c1c;
+}
+
+/* HOD Calibrated Coordinates (Dr. Manoj Behere) */
+.avatar-hod,
+.avatar-photo-frame[data-avatar="hod"] {
+  --eye-left-x: 62.4%;
+  --eye-left-y: 37.6%;
+  --eye-right-x: 40.4%;
+  --eye-right-y: 38.3%;
+  --eye-size-w: 6.2%;
+  --eye-size-h: 2.3%;
+  --brow-left-x: 62.4%;
+  --brow-left-y: 33.2%;
+  --brow-right-x: 39.5%;
+  --brow-right-y: 33.9%;
+  --mouth-x: 51.8%;
+  --mouth-y: 56.4%;
+  --mouth-left-x: 59.2%;
+  --mouth-left-y: 55.7%;
+  --mouth-right-x: 43.8%;
+  --mouth-right-y: 56.0%;
+  --eyelid-tone: #cca085;
+  --lip-color: #8c322b;
+}
+
+/* Dedicated Faculty Setup Hero Banner */
+.faculty-hero-banner {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  padding: 2.25rem 2rem;
+  background: linear-gradient(135deg, rgba(11, 15, 25, 0.88) 0%, rgba(15, 23, 42, 0.94) 100%),
+              url('/static/js/avatar/img/college_background.jpg') center center / cover no-repeat;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 20px rgba(99, 102, 241, 0.15);
+  margin-bottom: 1.5rem;
+}
+
+.faculty-back-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: #a5b4fc;
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+
+.faculty-back-link:hover {
+  color: #ffffff;
+  transform: translateX(-3px);
+}
+
+.faculty-hero-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin: 0.25rem 0 0.5rem 0;
+  line-height: 1.2;
+}
+
+.faculty-hero-subtitle {
+  font-size: 1rem;
+  color: #cbd5e1;
+  max-width: 680px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Faculty Interviewer Selection Grid & Large Cards */
+.faculty-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.faculty-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.75rem 1.5rem;
+  background: rgba(17, 24, 39, 0.7);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.22s ease, 
+              background 0.22s ease;
+}
+
+.faculty-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(99, 102, 241, 0.2);
+  background: rgba(17, 24, 39, 0.9);
+}
+
+.faculty-card.selected {
+  border-color: var(--accent, #6366f1) !important;
+  background: rgba(99, 102, 241, 0.08) !important;
+  box-shadow: 0 0 0 2px var(--accent, #6366f1), 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(99, 102, 241, 0.45) !important;
+}
+
+.faculty-radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.faculty-radio-custom {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.faculty-card.selected .faculty-radio-custom {
+  border-color: var(--accent, #6366f1);
+  background: var(--accent, #6366f1);
+  box-shadow: inset 0 0 0 3px #0f172a;
+}
+
+.faculty-photo-wrapper {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin-bottom: 1.25rem;
+  border-radius: 50%;
+  padding: 4px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(168, 85, 247, 0.4));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  transition: transform 0.22s ease;
+}
+
+.faculty-card:hover .faculty-photo-wrapper {
+  transform: scale(1.04);
+}
+
+.faculty-photo-thumb {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.faculty-info-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.faculty-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+}
+
+.faculty-badge-director {
+  background: rgba(236, 72, 153, 0.15);
+  color: #f472b6;
+  border: 1px solid rgba(236, 72, 153, 0.35);
+}
+
+.faculty-badge-hod {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.faculty-card-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f9fafb;
+  margin: 0 0 0.25rem 0;
+}
+
+.faculty-card-role {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #a5b4fc;
+  margin: 0 0 0.75rem 0;
+}
+
+.faculty-card-desc {
+  font-size: 0.82rem;
+  color: #9ca3af;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.category-link-card:hover {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 16px rgba(99, 102, 241, 0.2);
+}
+
+/* Faculty Header on Interview Results Page */
+.faculty-results-header {
+  position: relative;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(11, 15, 25, 0.92) 100%),
+              url('/static/js/avatar/img/college_background.jpg') center center / cover no-repeat;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 12px;
+  padding: 1.15rem 1.5rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.faculty-results-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.faculty-results-thumb {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.faculty-results-text h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #f9fafb;
+  margin-bottom: 0.2rem;
+}
+
+.faculty-results-text p {
+  font-size: 0.82rem;
+  color: #93c5fd;
 }
 
 /* Photo Base Layer Framing inside Rectangular Tile (Locked Aspect Ratio Reference Frame) */
