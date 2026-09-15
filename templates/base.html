@@ -8,15 +8,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
     <header class="site-header">
         <div class="header-container">
-            <a href="{% if session.get('role') == 'admin' %}{{ url_for('admin.dashboard') }}{% elif session.get('role') == 'student' %}{{ url_for('student.dashboard') }}{% else %}{{ url_for('main.index') }}{% endif %}" class="brand-logo">
-                <div class="brand-icon">IC</div>
-                <span>PrepVance AI</span>
+            <a href="{% if session.get('role') == 'admin' %}{{ url_for('admin.dashboard') }}{% elif session.get('role') == 'student' %}{{ url_for('student.dashboard') }}{% else %}{{ url_for('main.index') }}{% endif %}" class="navbar-brand" aria-label="PrepVance AI Home">
+                <div class="brand-icon">
+                    <span class="brand-icon-text">PV</span>
+                </div>
+                <span class="brand-name">
+                    <strong>PrepVance</strong><span class="brand-ai"> AI</span>
+                </span>
             </a>
 
             <nav class="nav-links">
@@ -67,6 +73,7 @@
 
     <footer class="site-footer">
         <div class="footer-container">
+            <p class="footer-tagline">It's Your Chance with PrepVance</p>
             <p>&copy; 2026 PrepVance AI &mdash; Intelligent Interview Preparation Platform.</p>
             <p class="footer-credit">Designed &amp; Developed by <span class="credit-author">Arsalan Kazi</span></p>
         </div>
