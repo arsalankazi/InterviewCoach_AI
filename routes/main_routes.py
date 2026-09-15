@@ -34,7 +34,7 @@ def health_check():
     is_healthy = db_status == "connected"
     data = {
         "status": "healthy" if is_healthy else "degraded",
-        "app_name": "InterviewCoach AI",
+        "app_name": "PrepVance AI",
         "version": "1.0.0",
         "module": "Module 15 - Final Integration & Testing",
         "database": db_status

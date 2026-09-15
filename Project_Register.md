@@ -1,4 +1,4 @@
-# InterviewCoach AI - Project Register
+# PrepVance AI - Project Register
 
 ## Version
 v0.1

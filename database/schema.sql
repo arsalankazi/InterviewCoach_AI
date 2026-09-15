@@ -1,4 +1,4 @@
--- Schema definition for InterviewCoach AI
+-- Schema definition for PrepVance AI
 
 -- Students / Users table
 CREATE TABLE IF NOT EXISTS users (

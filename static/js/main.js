@@ -1,5 +1,5 @@
 /**
- * InterviewCoach AI - Core Frontend Logic
+ * PrepVance AI - Core Frontend Logic
  * Includes health check, flash auto-dismiss, cascading scroll-reveal observer,
  * statistical count-up animations, and skeleton loaders.
  */

@@ -22,7 +22,7 @@ else:
 
 def create_app(config_name=None):
     """
-    Application factory for InterviewCoach AI.
+    Application factory for PrepVance AI.
     
     :param config_name: Environment configuration name ('development', 'testing', 'production')
     :return: Configured Flask application instance

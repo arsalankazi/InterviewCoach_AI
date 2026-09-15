@@ -40,7 +40,7 @@ def register():
             session['user_email'] = user.email
             session['role'] = 'student'
 
-            flash(f"Account created successfully! Welcome to InterviewCoach AI, {user.name}.", 'success')
+            flash(f"Account created successfully! Welcome to PrepVance AI, {user.name}.", 'success')
             return redirect(url_for('student.dashboard'))
         except Exception as e:
             flash(f"Registration failed: {str(e)}", 'error')

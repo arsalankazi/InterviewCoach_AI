@@ -1,5 +1,5 @@
 """
-Models package for InterviewCoach AI.
+Models package for PrepVance AI.
 """
 from models.user import User
 from models.admin import Admin

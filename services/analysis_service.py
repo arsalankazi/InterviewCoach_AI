@@ -1,7 +1,7 @@
 """
 services/analysis_service.py
 
-AI-powered interview performance analysis service for InterviewCoach AI.
+AI-powered interview performance analysis service for PrepVance AI.
 Builds a structured prompt from the full conversation transcript, calls Gemini,
 and parses the response into a validated analysis dictionary.
 """

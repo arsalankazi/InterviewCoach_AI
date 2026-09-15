@@ -1,7 +1,7 @@
 """
 services/conversation_engine.py
 
-Conversation Engine for InterviewCoach AI.
+Conversation Engine for PrepVance AI.
 Orchestrates interview state, system prompt generation, 4-stage interview progression,
 message persistence, and AI response generation via GeminiService (with intelligent stage progression fallback).
 """

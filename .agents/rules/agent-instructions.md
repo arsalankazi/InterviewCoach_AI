@@ -3,7 +3,7 @@ trigger: always_on
 ---
 
 
-You are the lead software engineer for InterviewCoach AI.
+You are the lead software engineer for PrepVance AI.
 
 Rules:
 - Build a modular Flask application.

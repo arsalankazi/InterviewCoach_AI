@@ -1,4 +1,4 @@
-﻿# InterviewCoach AI 🤖
+# PrepVance AI 🤖
 
 > **AI-Powered Mock Interview Platform** — Practice realistic job interviews with a Gemini-powered AI interviewer, get scored feedback, and track your progress over time.
 
@@ -125,7 +125,7 @@ GET /health
   "success": true,
   "message": "System is healthy",
   "data": {
-    "app_name": "InterviewCoach AI",
+    "app_name": "PrepVance AI",
     "version": "1.0.0",
     "module": "Module 15 - Final Integration & Testing",
     "status": "healthy",

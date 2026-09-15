@@ -1,7 +1,7 @@
 """
 services/practice_engine.py
 
-Practice Conversation Engine for InterviewCoach AI — Quick Practice Mode.
+Practice Conversation Engine for PrepVance AI — Quick Practice Mode.
 
 Key differences from conversation_engine.py (full interview):
   - No 4-stage progression — jumps directly to questions on the chosen topic.

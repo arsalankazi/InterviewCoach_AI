@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="InterviewCoach AI - Intelligent Interview Preparation Platform">
-    <title>{% block title %}InterviewCoach AI{% endblock %}</title>
+    <meta name="description" content="PrepVance AI - Intelligent Interview Preparation Platform">
+    <title>{% block title %}PrepVance AI{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,7 +16,7 @@
         <div class="header-container">
             <a href="{% if session.get('role') == 'admin' %}{{ url_for('admin.dashboard') }}{% elif session.get('role') == 'student' %}{{ url_for('student.dashboard') }}{% else %}{{ url_for('main.index') }}{% endif %}" class="brand-logo">
                 <div class="brand-icon">IC</div>
-                <span>InterviewCoach AI</span>
+                <span>PrepVance AI</span>
             </a>
 
             <nav class="nav-links">
@@ -67,7 +67,7 @@
 
     <footer class="site-footer">
         <div class="footer-container">
-            <p>&copy; 2026 InterviewCoach AI &mdash; Intelligent Interview Preparation Platform.</p>
+            <p>&copy; 2026 PrepVance AI &mdash; Intelligent Interview Preparation Platform.</p>
             <p class="footer-credit">Designed &amp; Developed by <span class="credit-author">Arsalan Kazi</span></p>
         </div>
     </footer>

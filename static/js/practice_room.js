@@ -1,6 +1,6 @@
 /**
  * static/js/practice_room.js
- * Practice Room Controller for InterviewCoach AI — Single-Topic Practice Mode.
+ * Practice Room Controller for PrepVance AI — Single-Topic Practice Mode.
  *
  * Handles:
  * - Speech-to-Text via VoiceInputManager with robust reset() logic.

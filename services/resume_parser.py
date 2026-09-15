@@ -1,7 +1,7 @@
 """
 services/resume_parser.py
 
-PDF text extraction and skill detection service for InterviewCoach AI.
+PDF text extraction and skill detection service for PrepVance AI.
 Uses pdfplumber for text extraction and whole-word regex matching to identify
 skills from a curated library. Zero Flask dependency — fully testable in isolation.
 """

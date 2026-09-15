@@ -1,7 +1,7 @@
 /**
  * static/js/onboarding.js
  *
- * InterviewCoach AI — Student Dashboard Onboarding Tour
+ * PrepVance AI — Student Dashboard Onboarding Tour
  *
  * Features:
  *   - Position-aware glassmorphic card (center, right, left)

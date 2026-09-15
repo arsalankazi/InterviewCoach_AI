@@ -1,7 +1,7 @@
 """
 tests/test_integration.py
 
-Module 15 — Comprehensive End-to-End Test Suite for InterviewCoach AI.
+Module 15 — Comprehensive End-to-End Test Suite for PrepVance AI.
 
 Covers:
   - Student flow: register → login → resume → skills → interview → chat → results → history
@@ -38,7 +38,7 @@ SAMPLE_STUDENT = {
     "confirm_password": "TestPass@123",
 }
 
-SAMPLE_ADMIN_EMAIL = "admin@interviewcoach.ai"
+SAMPLE_ADMIN_EMAIL = "admin@prepvance.ai"
 SAMPLE_ADMIN_PASSWORD = "Admin@123456"
 
 
@@ -117,7 +117,7 @@ class TestSystemRoutes(BaseTestCase):
     def test_landing_page_returns_200(self):
         resp = self.client.get("/")
         self.assertEqual(resp.status_code, 200)
-        self.assertIn(b"InterviewCoach AI", resp.data)
+        self.assertIn(b"PrepVance AI", resp.data)
 
     def test_404_returns_json_error(self):
         resp = self.client.get("/this-route-does-not-exist-xyz")
