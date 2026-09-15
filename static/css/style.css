@@ -8648,10 +8648,33 @@ a.skill-badge-more:hover {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
+/* Spotlight cutout overlay */
+#ot-spotlight {
+  position: fixed;
+  z-index: 9001;
+  pointer-events: none;
+  border-radius: 14px;
+  border: 2px solid #818cf8;
+  box-shadow:
+    0 0 0 9999px rgba(11, 15, 25, 0.82),
+    0 0 0 3px #6366f1,
+    0 0 40px rgba(99, 102, 241, 0.55);
+  box-sizing: border-box;
+  transition:
+    top 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    left 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    width 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.25s ease,
+    opacity 0.2s ease;
+}
+
 /* Glowing spotlight ring on targeted dashboard cards */
+.tour-highlight,
+.tour-spotlight,
 .ot-highlight {
   position: relative !important;
-  z-index: 9001 !important;
+  z-index: 99995 !important;
   box-shadow:
     0 0 0 3px #6366f1,
     0 0 40px rgba(99, 102, 241, 0.5),
@@ -8769,8 +8792,10 @@ a.skill-badge-more:hover {
 /* Reduced Motion Override */
 @media (prefers-reduced-motion: reduce) {
   #ot-backdrop,
+  #ot-spotlight,
   #ot-card,
   .ot-highlight,
+  .tour-highlight,
   .reveal-on-scroll,
   .ripple-effect,
   .stat-card,

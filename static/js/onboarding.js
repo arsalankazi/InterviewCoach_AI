@@ -79,6 +79,7 @@
     /*  DOM REFS                                                            */
     /* ------------------------------------------------------------------ */
     var elBackdrop    = null;
+    var elSpotlight   = null;
     var elCard        = null;
     var elProgressBar = null;
     var elBadge       = null;
@@ -198,6 +199,17 @@
         });
         elBackdrop.addEventListener('click', function () { skip(); });
         document.body.appendChild(elBackdrop);
+
+        /* --- SPOTLIGHT CUTOUT OVERLAY --- */
+        elSpotlight = document.createElement('div');
+        elSpotlight.id = 'ot-spotlight';
+        css(elSpotlight, {
+            position:      'fixed',
+            zIndex:        '9001',
+            pointerEvents: 'none',
+            display:       'none'
+        });
+        document.body.appendChild(elSpotlight);
 
         /* --- TOUR CARD --- */
         elCard = document.createElement('div');
@@ -475,37 +487,70 @@
     /* ------------------------------------------------------------------ */
     /*  HIGHLIGHT HELPERS                                                   */
     /* ------------------------------------------------------------------ */
+    function updateSpotlightPos() {
+        if (!highlighted || !elSpotlight) return;
+        var rect = highlighted.getBoundingClientRect();
+        var pad = 4;
+        css(elSpotlight, {
+            display:      'block',
+            top:          (rect.top - pad) + 'px',
+            left:         (rect.left - pad) + 'px',
+            width:        (rect.width + (pad * 2)) + 'px',
+            height:       (rect.height + (pad * 2)) + 'px',
+            borderRadius: (window.getComputedStyle(highlighted).borderRadius || '14px')
+        });
+    }
+
     function applyHighlight(selector) {
         removeHighlight();
-        if (!selector) return;
+        if (!selector) {
+            console.log('[Tour] Step ' + (step + 1) + ': target selector = null, element found = false');
+            return;
+        }
         var el = document.querySelector(selector);
+        var found = !!el;
+        console.log('[Tour] Step ' + (step + 1) + ': target selector = ' + selector + ', element found = ' + found);
         if (!el) return;
 
         highlighted = el;
-        el._otPrevShadow   = el.style.boxShadow   || '';
-        el._otPrevPosition = el.style.position     || '';
-        el._otPrevZIndex   = el.style.zIndex       || '';
-        el._otPrevBorder   = el.style.borderColor  || '';
+        el.classList.add('tour-highlight', 'tour-spotlight', 'ot-highlight');
 
-        css(el, {
-            boxShadow:   '0 0 0 3px #6366f1, 0 0 40px rgba(99,102,241,0.5)',
-            position:    'relative',
-            zIndex:      '9001',
-            borderColor: '#818cf8'
-        });
+        // Target card is illuminated by spotlight cutout; backdrop becomes transparent so hole shines through
+        if (elBackdrop) {
+            css(elBackdrop, {
+                background:           'transparent',
+                backdropFilter:       'none',
+                webkitBackdropFilter: 'none'
+            });
+        }
+
+        updateSpotlightPos();
 
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Update spotlight position during and after smooth scroll
+        var scrollTimer = setInterval(updateSpotlightPos, 40);
+        setTimeout(function () {
+            clearInterval(scrollTimer);
+            updateSpotlightPos();
+        }, 550);
     }
 
     function removeHighlight() {
-        if (!highlighted) return;
-        css(highlighted, {
-            boxShadow:   highlighted._otPrevShadow,
-            position:    highlighted._otPrevPosition,
-            zIndex:      highlighted._otPrevZIndex,
-            borderColor: highlighted._otPrevBorder
-        });
-        highlighted = null;
+        if (highlighted) {
+            highlighted.classList.remove('tour-highlight', 'tour-spotlight', 'ot-highlight');
+            highlighted = null;
+        }
+        if (elSpotlight) {
+            css(elSpotlight, { display: 'none' });
+        }
+        if (elBackdrop) {
+            css(elBackdrop, {
+                background:           'rgba(11,15,25,0.82)',
+                backdropFilter:       'blur(6px)',
+                webkitBackdropFilter: 'blur(6px)'
+            });
+        }
     }
 
     /* ------------------------------------------------------------------ */
@@ -555,6 +600,7 @@
             applyHighlight(s.target);
         } else {
             removeHighlight();
+            console.log('[Tour] Step ' + (step + 1) + ': target selector = null, element found = false');
         }
 
         positionCard(s.pos || 'center');
@@ -574,8 +620,9 @@
     function hide() {
         active = false;
         removeHighlight();
-        if (elBackdrop) css(elBackdrop, { display: 'none' });
-        if (elCard)     css(elCard,     { display: 'none' });
+        if (elBackdrop)  css(elBackdrop,  { display: 'none' });
+        if (elCard)      css(elCard,      { display: 'none' });
+        if (elSpotlight) css(elSpotlight, { display: 'none' });
     }
 
     function callApi() {
@@ -601,6 +648,21 @@
         active = true;
         render(0);
     }
+
+    /* ------------------------------------------------------------------ */
+    /*  SCROLL & RESIZE TRACKING FOR SPOTLIGHT                              */
+    /* ------------------------------------------------------------------ */
+    window.addEventListener('scroll', function () {
+        if (active && highlighted) {
+            updateSpotlightPos();
+        }
+    }, { passive: true });
+
+    window.addEventListener('resize', function () {
+        if (active && highlighted) {
+            updateSpotlightPos();
+        }
+    }, { passive: true });
 
     /* ------------------------------------------------------------------ */
     /*  KEYBOARD CONTROLS                                                   */
